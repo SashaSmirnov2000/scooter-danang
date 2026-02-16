@@ -13,7 +13,7 @@ export default function Home() {
     },
     en: { 
       title: "DANANG SCOOTER RENTAL", 
-      sub: "Premium motorbike rental", 
+      sub: "Premium Motorbike & Scooter Rental", 
       btn: "Check Availability" 
     }
   };
