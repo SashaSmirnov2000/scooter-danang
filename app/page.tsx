@@ -1,25 +1,41 @@
 "use client";
-import { useState, useEffect } from 'react'; // Добавили useEffect
-import { scooters } from './data';
+import { useState, useEffect } from 'react';
+import { supabase } from './supabase'; // Наш мост к базе
 import Link from 'next/link';
 
 export default function Home() {
-  // По умолчанию 'ru', но useEffect ниже проверит память
   const [lang, setLang] = useState<'ru' | 'en'>('ru');
+  const [bikes, setBikes] = useState<any[]>([]); // Состояние для байков из базы
+  const [loading, setLoading] = useState(true);
 
-  // 1. Читаем язык из памяти браузера при загрузке
+  // 1. Загрузка языка и данных из Supabase
   useEffect(() => {
+    // Читаем язык
     const savedLang = localStorage.getItem('userLang') as 'ru' | 'en';
-    if (savedLang) {
-      setLang(savedLang);
+    if (savedLang) setLang(savedLang);
+
+    // Загружаем байки
+    async function loadBikes() {
+      const { data, error } = await supabase
+        .from('scooters') // Твоя таблица
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Ошибка базы:', error);
+      } else {
+        setBikes(data || []);
+      }
+      setLoading(false);
     }
+
+    loadBikes();
   }, []);
 
-  // 2. Функция для смены языка с сохранением
   const toggleLang = () => {
     const newLang = lang === 'ru' ? 'en' : 'ru';
     setLang(newLang);
-    localStorage.setItem('userLang', newLang); // Записываем выбор в память
+    localStorage.setItem('userLang', newLang);
   };
   
   const t = {
@@ -28,14 +44,16 @@ export default function Home() {
       sub: "Каталог скутеров и мотоциклов", 
       btn: "Узнать наличие",
       day: "в сутки",
-      month: "в месяц"
+      month: "в месяц",
+      loading: "Загрузка байков..."
     },
     en: { 
       title: "DANANG SCOOTER RENTAL", 
       sub: "Premium Motorbike & Scooter Rental", 
       btn: "Check Availability",
       day: "per day",
-      month: "per month"
+      month: "per month",
+      loading: "Loading bikes..."
     }
   };
 
@@ -47,7 +65,7 @@ export default function Home() {
           <span className="font-black text-lg tracking-tighter uppercase italic text-white">Dragon Bike</span>
         </div>
         <button 
-          onClick={toggleLang} // Используем новую функцию
+          onClick={toggleLang}
           className="bg-white/5 border border-white/10 px-4 py-1.5 rounded-xl text-[10px] font-bold uppercase hover:bg-white/10 transition-colors"
         >
           {lang === 'ru' ? 'English' : 'Русский'}
@@ -65,37 +83,41 @@ export default function Home() {
       </section>
 
       <section className="max-w-7xl mx-auto px-6 py-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {scooters.map((s: any) => (
-            <div key={s.id} className="group bg-[#161d2f] rounded-[2rem] p-5 border border-white/5 flex flex-col h-full hover:border-green-500/30 transition-all shadow-xl">
-              <Link href={`/bike/${s.id}`} className="cursor-pointer flex-grow">
-                <div className="h-44 overflow-hidden rounded-[1.5rem] mb-4 bg-black/10 flex items-center justify-center">
-                  <img src={s.image} className="w-full h-full object-contain p-2 group-hover:scale-110 transition-transform duration-500" alt={s.model} />
-                </div>
-                <h3 className="text-xl font-bold mb-4 group-hover:text-green-400 transition-colors">{s.model}</h3>
-              </Link>
-              <div className="flex flex-col gap-4 pt-4 border-t border-white/5">
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <span className="text-lg font-black">{s.price}</span>
-                    <p className="text-[8px] text-white/30 uppercase font-bold tracking-tighter">{t[lang].day}</p>
+        {loading ? (
+          <div className="text-center py-20 text-white/50">{t[lang].loading}</div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {bikes.map((s) => (
+              <div key={s.id} className="group bg-[#161d2f] rounded-[2rem] p-5 border border-white/5 flex flex-col h-full hover:border-green-500/30 transition-all shadow-xl">
+                <Link href={`/bike/${s.id}`} className="cursor-pointer flex-grow">
+                  <div className="h-44 overflow-hidden rounded-[1.5rem] mb-4 bg-black/10 flex items-center justify-center">
+                    <img src={s.image} className="w-full h-full object-contain p-2 group-hover:scale-110 transition-transform duration-500" alt={s.model} />
                   </div>
-                  <div className="border-l border-white/10 pl-3">
-                    <span className="text-lg font-black text-green-400">{s.priceMonth}</span>
-                    <p className="text-[8px] text-green-400/30 uppercase font-bold tracking-tighter">{t[lang].month}</p>
+                  <h3 className="text-xl font-bold mb-4 group-hover:text-green-400 transition-colors">{s.model}</h3>
+                </Link>
+                <div className="flex flex-col gap-4 pt-4 border-t border-white/5">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <span className="text-lg font-black">{s.price_day}</span>
+                      <p className="text-[8px] text-white/30 uppercase font-bold tracking-tighter">{t[lang].day}</p>
+                    </div>
+                    <div className="border-l border-white/10 pl-3">
+                      <span className="text-lg font-black text-green-400">{s.price_month}</span>
+                      <p className="text-[8px] text-green-400/30 uppercase font-bold tracking-tighter">{t[lang].month}</p>
+                    </div>
                   </div>
+                  <a 
+                    href={`https://wa.me/${s.vendor_phone}?text=${lang === 'ru' ? 'Здравствуйте! Хочу узнать наличие' : 'Hello! I want to check availability'} ${s.model}`} 
+                    target="_blank" 
+                    className="w-full bg-green-600 py-3 rounded-xl font-bold text-[11px] uppercase text-center flex items-center justify-center gap-2 hover:bg-green-500 transition-all active:scale-95 shadow-lg shadow-green-900/20"
+                  >
+                    <span>💬</span> {t[lang].btn}
+                  </a>
                 </div>
-                <a 
-                  href={`https://wa.me/${s.phone}?text=${lang === 'ru' ? 'Здравствуйте! Хочу узнать наличие' : 'Hello! I want to check availability'} ${s.model}`} 
-                  target="_blank" 
-                  className="w-full bg-green-600 py-3 rounded-xl font-bold text-[11px] uppercase text-center flex items-center justify-center gap-2 hover:bg-green-500 transition-all active:scale-95 shadow-lg shadow-green-900/20"
-                >
-                  <span>💬</span> {t[lang].btn}
-                </a>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </section>
     </main>
   );

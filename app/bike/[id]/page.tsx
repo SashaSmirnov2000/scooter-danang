@@ -1,27 +1,43 @@
 "use client";
 import { useState, useEffect } from 'react';
 import { useParams } from "next/navigation";
-import { scooters } from "../../data";
+import { supabase } from "../../supabase"; // Путь к твоему файлу supabase.ts
 import Link from "next/link";
 
 export default function BikePage() {
   const params = useParams();
   const [lang, setLang] = useState<'ru' | 'en'>('ru');
+  const [bike, setBike] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
   
-  // Читаем язык из памяти браузера
+  // 1. Загружаем язык и данные из базы
   useEffect(() => {
     const saved = localStorage.getItem('userLang') as 'ru' | 'en';
     if (saved) setLang(saved);
-  }, []);
 
-  // Функция смены языка с сохранением
+    async function loadBikeData() {
+      const { data, error } = await supabase
+        .from('scooters')
+        .select('*')
+        .eq('id', params.id)
+        .single();
+
+      if (error) {
+        console.error('Ошибка загрузки байка:', error);
+      } else {
+        setBike(data);
+      }
+      setLoading(false);
+    }
+
+    if (params.id) loadBikeData();
+  }, [params.id]);
+
   const toggleLang = () => {
     const newLang = lang === 'ru' ? 'en' : 'ru';
     setLang(newLang);
     localStorage.setItem('userLang', newLang);
   };
-
-  const bike = scooters.find((s: any) => s.id === Number(params.id));
 
   const t = {
     ru: { 
@@ -33,6 +49,7 @@ export default function BikePage() {
       month: "В месяц", 
       btn: "Забронировать в WhatsApp", 
       notFound: "Байк не найден", 
+      loading: "Загрузка...",
       msg: "Здравствуйте! Хочу забронировать" 
     },
     en: { 
@@ -44,10 +61,12 @@ export default function BikePage() {
       month: "Per month", 
       btn: "Book via WhatsApp", 
       notFound: "Bike not found", 
+      loading: "Loading...",
       msg: "Hello! I want to book" 
     }
   };
 
+  if (loading) return <div className="min-h-screen bg-[#0b0f1a] flex items-center justify-center text-white">{t[lang].loading}</div>;
   if (!bike) return <div className="p-10 text-white text-center font-sans">{t[lang].notFound}</div>;
 
   return (
@@ -98,19 +117,19 @@ export default function BikePage() {
         {/* Цены */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
           <div className="bg-[#161d2f] p-8 rounded-[2.5rem] border border-white/5 text-center shadow-xl">
-            <span className="text-4xl font-black">{bike.price}</span>
+            <span className="text-4xl font-black">{bike.price_day}</span>
             <p className="text-[10px] text-white/30 uppercase font-bold mt-2 tracking-widest">{t[lang].day}</p>
           </div>
           <div className="bg-[#161d2f] p-8 rounded-[2.5rem] border border-green-500/20 text-center shadow-lg relative overflow-hidden">
              <div className="absolute top-0 right-0 bg-green-500 text-[8px] font-black px-3 py-1 rounded-bl-xl uppercase text-black">Best Price</div>
-            <span className="text-4xl font-black text-green-400">{bike.priceMonth}</span>
+            <span className="text-4xl font-black text-green-400">{bike.price_month}</span>
             <p className="text-[10px] text-green-400/30 uppercase font-bold mt-2 tracking-widest">{t[lang].month}</p>
           </div>
         </div>
 
         {/* Кнопка WhatsApp */}
         <a 
-          href={`https://wa.me/${bike.phone}?text=${t[lang].msg} ${bike.model}`}
+          href={`https://wa.me/${bike.vendor_phone}?text=${t[lang].msg} ${bike.model}`}
           target="_blank"
           className="w-full bg-green-600 hover:bg-green-500 text-white flex items-center justify-center py-6 rounded-[2.5rem] font-black text-lg md:text-xl uppercase transition-all shadow-lg shadow-green-900/40 active:scale-95"
         >
