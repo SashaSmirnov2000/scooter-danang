@@ -57,6 +57,7 @@ export default function Home() {
 
   return (
     <main className="bg-[#05070a] min-h-screen text-white font-sans">
+      {/* Navigation */}
       <nav className="fixed top-0 w-full z-[100] bg-[#05070a]/80 backdrop-blur-xl border-b border-white/5 h-20 flex items-center justify-between px-8">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-green-500 rounded-xl flex items-center justify-center shadow-[0_0_20px_rgba(34,197,94,0.4)] text-xl">🐉</div>
@@ -70,6 +71,7 @@ export default function Home() {
         </button>
       </nav>
 
+      {/* Hero Section */}
       <section className="relative h-[60vh] flex items-center justify-center overflow-hidden text-center px-6 pt-16">
         <div className="absolute inset-0 z-0">
           <img src="https://static.vinwonders.com/2022/12/Dragon-Bridge-thumb.jpg" className="w-full h-full object-cover opacity-40" alt="Bridge" />
@@ -84,6 +86,7 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Grid Section */}
       <section className="max-w-7xl mx-auto px-6 pb-24 -mt-10 relative z-20">
         {loading ? (
           <div className="flex justify-center py-20"><div className="w-10 h-10 border-2 border-green-500 border-t-transparent rounded-full animate-spin" /></div>
@@ -92,7 +95,7 @@ export default function Home() {
             {bikes.map((s) => (
               <div key={s.id} className="group bg-[#11141b] rounded-[2.5rem] border border-white/5 overflow-hidden transition-all hover:border-green-500/40 hover:shadow-2xl">
                 <Link href={`/bike/${s.id}`} className="block relative h-64 overflow-hidden bg-white/5">
-                  <img src={s.image} className="w-full h-full object-cover p-6 transition-transform duration-700 group-hover:scale-110" alt={s.model} />
+                  <img src={s.image} className="w-full h-full object-contain p-6 transition-transform duration-700 group-hover:scale-110" alt={s.model} />
                   <div className="absolute top-6 right-6 bg-black/60 backdrop-blur-md px-3 py-1 rounded-full border border-white/10 text-[10px] font-bold">{s.year}</div>
                 </Link>
                 <div className="p-8">
@@ -111,7 +114,7 @@ export default function Home() {
                   </div>
                   <div className="flex gap-3">
                     <Link href={`/bike/${s.id}`} className="flex-1 text-center bg-white/5 border border-white/10 py-4 rounded-2xl font-bold text-[10px] uppercase transition-all hover:bg-white/10">Details</Link>
-                    <a href={`https://wa.me/${s.vendor_phone}?text=Hello ${s.model}`} target="_blank" className="flex-[1.5] bg-green-600 hover:bg-green-500 py-4 rounded-2xl font-bold text-[10px] uppercase text-center transition-all shadow-lg shadow-green-900/20">{t[lang].btn}</a>
+                    <a href={`https://wa.me/${s.vendor_phone}?text=Hello! I want to book ${s.model}`} target="_blank" className="flex-[1.5] bg-green-600 hover:bg-green-500 py-4 rounded-2xl font-bold text-[10px] uppercase text-center transition-all shadow-lg shadow-green-900/20">{t[lang].btn}</a>
                   </div>
                 </div>
               </div>
