@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from 'react';
 import { useParams } from "next/navigation";
-import { supabase } from "../../supabase"; // Путь к твоему файлу supabase.ts
+import { supabase } from "../../supabase"; 
 import Link from "next/link";
 
 export default function BikePage() {
@@ -9,8 +9,8 @@ export default function BikePage() {
   const [lang, setLang] = useState<'ru' | 'en'>('ru');
   const [bike, setBike] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  
-  // 1. Загружаем язык и данные из базы
+  const [activePhoto, setActivePhoto] = useState('');
+
   useEffect(() => {
     const saved = localStorage.getItem('userLang') as 'ru' | 'en';
     if (saved) setLang(saved);
@@ -26,6 +26,7 @@ export default function BikePage() {
         console.error('Ошибка загрузки байка:', error);
       } else {
         setBike(data);
+        setActivePhoto(data.image);
       }
       setLoading(false);
     }
@@ -41,100 +42,146 @@ export default function BikePage() {
 
   const t = {
     ru: { 
-      back: "← Назад", 
-      engine: "Двигатель", 
-      year: "Год выпуска", 
-      fuel: "Расход", 
+      back: "← Назад в каталог", 
+      engine: "Объем", 
+      year: "Год", 
       day: "В сутки", 
       month: "В месяц", 
-      btn: "Забронировать в WhatsApp", 
+      btn: "Забронировать", 
       notFound: "Байк не найден", 
       loading: "Загрузка...",
-      msg: "Здравствуйте! Хочу забронировать" 
+      msg: "Здравствуйте! Хочу забронировать",
+      included: "В стоимость включено:",
+      features: ["2 защитных шлема", "Техподдержка 24/7", "Чистое состояние"]
     },
     en: { 
-      back: "← Back", 
+      back: "← Back to catalog", 
       engine: "Engine", 
       year: "Year", 
-      fuel: "Fuel", 
       day: "Per day", 
       month: "Per month", 
       btn: "Book via WhatsApp", 
       notFound: "Bike not found", 
       loading: "Loading...",
-      msg: "Hello! I want to book" 
+      msg: "Hello! I want to book",
+      specs: "Specifications",
+      included: "What's included:",
+      features: ["2 Helmets", "24/7 Support", "Clean condition"]
     }
   };
 
-  if (loading) return <div className="min-h-screen bg-[#0b0f1a] flex items-center justify-center text-white">{t[lang].loading}</div>;
-  if (!bike) return <div className="p-10 text-white text-center font-sans">{t[lang].notFound}</div>;
+  if (loading) return (
+    <div className="min-h-screen bg-[#05070a] flex items-center justify-center">
+      <div className="w-12 h-12 border-4 border-green-500 border-t-transparent rounded-full animate-spin"></div>
+    </div>
+  );
+  
+  if (!bike) return <div className="p-10 text-white text-center bg-[#05070a] min-h-screen">{t[lang].notFound}</div>;
+
+  const gallery = [bike.image];
+  if (bike.images_gallery) {
+    const extra = bike.images_gallery.split(',').map((s: string) => s.trim());
+    gallery.push(...extra);
+  }
 
   return (
-    <main className="min-h-screen bg-[#0b0f1a] text-white p-6 font-sans">
-      <div className="max-w-4xl mx-auto">
+    <main className="min-h-screen bg-[#05070a] text-white font-sans selection:bg-green-500/30">
+      <div className="max-w-6xl mx-auto px-6 py-12">
         
-        {/* Навигация и Язык */}
-        <div className="flex justify-between items-center mb-10">
-          <Link href="/" className="text-green-400 font-bold uppercase text-[10px] tracking-widest hover:opacity-70 transition-opacity">
+        {/* Navigation */}
+        <div className="flex justify-between items-center mb-12">
+          <Link href="/" className="text-gray-500 hover:text-white transition-colors uppercase text-[10px] font-bold tracking-[0.2em]">
             {t[lang].back}
           </Link>
           <button 
             onClick={toggleLang} 
-            className="bg-white/5 border border-white/10 px-4 py-2 rounded-xl text-[10px] font-bold uppercase hover:bg-white/10 transition-colors"
+            className="bg-white/5 border border-white/10 px-5 py-2 rounded-2xl text-[10px] font-bold uppercase hover:bg-white/10 transition-all"
           >
             {lang === 'ru' ? 'English' : 'Русский'}
           </button>
         </div>
-        
-        <h1 className="text-4xl md:text-7xl font-black mb-8 italic uppercase tracking-tighter text-center leading-tight">
-          {bike.model}
-        </h1>
-        
-        <div className="bg-[#161d2f] rounded-[3rem] p-6 mb-10 border border-white/5 shadow-2xl text-center overflow-hidden">
-          <img 
-            src={bike.image} 
-            className="max-w-full h-auto max-h-[400px] object-contain mx-auto transition-transform duration-500 hover:scale-105" 
-            alt={bike.model} 
-          />
-        </div>
 
-        {/* Характеристики */}
-        <div className="grid grid-cols-3 gap-4 mb-10">
-          <div className="bg-[#1c2539] p-4 rounded-[2rem] border border-white/5 flex flex-col items-center">
-            <span className="text-[9px] uppercase text-white/40 font-bold mb-1 tracking-wider">{t[lang].engine}</span>
-            <span className="font-black text-sm uppercase italic">{bike.engine || "—"}</span>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-start">
+          
+          {/* Gallery Section */}
+          <div className="space-y-6">
+            <div className="aspect-[4/3] rounded-[3rem] overflow-hidden bg-[#11141b] border border-white/5 shadow-2xl">
+              <img 
+                src={activePhoto} 
+                className="w-full h-full object-cover" 
+                alt={bike.model} 
+              />
+            </div>
+            
+            {gallery.length > 1 && (
+              <div className="flex gap-4 overflow-x-auto pb-4 custom-scrollbar">
+                {gallery.map((img, idx) => (
+                  <button 
+                    key={idx}
+                    onClick={() => setActivePhoto(img)}
+                    className={`relative w-24 h-24 rounded-2xl overflow-hidden flex-shrink-0 border-2 transition-all duration-300 ${activePhoto === img ? 'border-green-500 scale-95' : 'border-transparent opacity-40 hover:opacity-100'}`}
+                  >
+                    <img src={img} className="w-full h-full object-cover" alt="preview" />
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
-          <div className="bg-[#1c2539] p-4 rounded-[2rem] border border-white/5 flex flex-col items-center">
-            <span className="text-[9px] uppercase text-white/40 font-bold mb-1 tracking-wider">{t[lang].year}</span>
-            <span className="font-black text-sm uppercase italic">{bike.year || "—"}</span>
-          </div>
-          <div className="bg-[#1c2539] p-4 rounded-[2rem] border border-white/5 flex flex-col items-center">
-            <span className="text-[9px] uppercase text-white/40 font-bold mb-1 tracking-wider">{t[lang].fuel}</span>
-            <span className="font-black text-sm uppercase italic">{bike.fuel || "—"}</span>
-          </div>
-        </div>
-        
-        {/* Цены */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-          <div className="bg-[#161d2f] p-8 rounded-[2.5rem] border border-white/5 text-center shadow-xl">
-            <span className="text-4xl font-black">{bike.price_day}</span>
-            <p className="text-[10px] text-white/30 uppercase font-bold mt-2 tracking-widest">{t[lang].day}</p>
-          </div>
-          <div className="bg-[#161d2f] p-8 rounded-[2.5rem] border border-green-500/20 text-center shadow-lg relative overflow-hidden">
-             <div className="absolute top-0 right-0 bg-green-500 text-[8px] font-black px-3 py-1 rounded-bl-xl uppercase text-black">Best Price</div>
-            <span className="text-4xl font-black text-green-400">{bike.price_month}</span>
-            <p className="text-[10px] text-green-400/30 uppercase font-bold mt-2 tracking-widest">{t[lang].month}</p>
-          </div>
-        </div>
 
-        {/* Кнопка WhatsApp */}
-        <a 
-          href={`https://wa.me/${bike.vendor_phone}?text=${t[lang].msg} ${bike.model}`}
-          target="_blank"
-          className="w-full bg-green-600 hover:bg-green-500 text-white flex items-center justify-center py-6 rounded-[2.5rem] font-black text-lg md:text-xl uppercase transition-all shadow-lg shadow-green-900/40 active:scale-95"
-        >
-          {t[lang].btn}
-        </a>
+          {/* Info Section */}
+          <div className="flex flex-col">
+            <div className="mb-10">
+               <h1 className="text-5xl md:text-7xl font-bold uppercase italic tracking-tighter leading-tight mb-6">
+                {bike.model}
+              </h1>
+              <div className="flex flex-wrap gap-4">
+                <div className="bg-white/5 px-4 py-2 rounded-full border border-white/5 flex items-center gap-2">
+                  <span className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">{t[lang].engine}</span>
+                  <span className="text-sm font-black text-green-500">{bike.engine}CC</span>
+                </div>
+                <div className="bg-white/5 px-4 py-2 rounded-full border border-white/5 flex items-center gap-2">
+                  <span className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">{t[lang].year}</span>
+                  <span className="text-sm font-black">{bike.year}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Pricing */}
+            <div className="grid grid-cols-2 gap-4 mb-8">
+              <div className="bg-[#11141b] p-6 rounded-[2.5rem] border border-white/5">
+                <p className="text-[9px] text-gray-500 uppercase font-black mb-1 tracking-widest">{t[lang].day}</p>
+                <p className="text-3xl font-bold">{bike.price_day}</p>
+              </div>
+              <div className="bg-[#11141b] p-6 rounded-[2.5rem] border border-green-500/20 shadow-[0_0_30px_rgba(34,197,94,0.05)]">
+                <p className="text-[9px] text-green-500 uppercase font-black mb-1 tracking-widest">{t[lang].month}</p>
+                <p className="text-3xl font-bold text-green-400">{bike.price_month}</p>
+              </div>
+            </div>
+
+            {/* Features List */}
+            <div className="bg-white/[0.02] p-8 rounded-[2.5rem] border border-white/5 mb-10">
+              <h3 className="text-[10px] font-black uppercase tracking-[0.2em] mb-6 text-gray-500">{t[lang].included}</h3>
+              <div className="grid grid-cols-1 gap-4">
+                {t[lang].features.map((f, i) => (
+                  <div key={i} className="flex items-center gap-3 text-sm font-medium">
+                    <div className="w-1.5 h-1.5 bg-green-500 rounded-full shadow-[0_0_10px_rgba(34,197,94,0.8)]" />
+                    {f}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Booking Button */}
+            <a 
+              href={`https://wa.me/${bike.vendor_phone}?text=${t[lang].msg} ${bike.model}`}
+              target="_blank"
+              className="w-full bg-green-600 hover:bg-green-500 text-white flex items-center justify-center py-7 rounded-[2rem] font-black text-[11px] md:text-xs uppercase tracking-[0.2em] transition-all shadow-[0_20px_40px_rgba(22,163,74,0.15)] active:scale-[0.98]"
+            >
+              {t[lang].btn}
+            </a>
+          </div>
+
+        </div>
       </div>
     </main>
   );

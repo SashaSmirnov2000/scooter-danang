@@ -1,23 +1,20 @@
 "use client";
 import { useState, useEffect } from 'react';
-import { supabase } from './supabase'; // Наш мост к базе
+import { supabase } from './supabase'; 
 import Link from 'next/link';
 
 export default function Home() {
   const [lang, setLang] = useState<'ru' | 'en'>('ru');
-  const [bikes, setBikes] = useState<any[]>([]); // Состояние для байков из базы
+  const [bikes, setBikes] = useState<any[]>([]); 
   const [loading, setLoading] = useState(true);
 
-  // 1. Загрузка языка и данных из Supabase
   useEffect(() => {
-    // Читаем язык
     const savedLang = localStorage.getItem('userLang') as 'ru' | 'en';
     if (savedLang) setLang(savedLang);
 
-    // Загружаем байки
     async function loadBikes() {
       const { data, error } = await supabase
-        .from('scooters') // Твоя таблица
+        .from('scooters') 
         .select('*')
         .order('created_at', { ascending: false });
 
@@ -28,7 +25,6 @@ export default function Home() {
       }
       setLoading(false);
     }
-
     loadBikes();
   }, []);
 
@@ -40,17 +36,19 @@ export default function Home() {
   
   const t = {
     ru: { 
-      title: "АРЕНДА СКУТЕРОВ В ДАНАНГЕ", 
-      sub: "Каталог скутеров и мотоциклов", 
-      btn: "Узнать наличие",
+      title: "Аренда скутеров и мотоциклов", 
+      location: "Дананг, Вьетнам",
+      sub: "PREMIUM MOTO RENTAL", 
+      btn: "Забронировать",
       day: "в сутки",
       month: "в месяц",
       loading: "Загрузка байков..."
     },
     en: { 
-      title: "DANANG SCOOTER RENTAL", 
-      sub: "Premium Motorbike & Scooter Rental", 
-      btn: "Check Availability",
+      title: "Scooter & Moto Rental", 
+      location: "Da Nang, Vietnam",
+      sub: "PREMIUM MOTO RENTAL", 
+      btn: "Book Now",
       day: "per day",
       month: "per month",
       loading: "Loading bikes..."
@@ -58,61 +56,63 @@ export default function Home() {
   };
 
   return (
-    <main className="bg-[#0b0f1a] min-h-screen text-white font-sans">
-      <nav className="fixed top-0 w-full z-[100] bg-[#0b0f1a]/70 backdrop-blur-md border-b border-white/5 h-16 flex items-center justify-between px-6">
-        <div className="flex items-center gap-2">
-          <span className="text-xl">🐉</span>
-          <span className="font-black text-lg tracking-tighter uppercase italic text-white">Dragon Bike</span>
+    <main className="bg-[#05070a] min-h-screen text-white font-sans">
+      <nav className="fixed top-0 w-full z-[100] bg-[#05070a]/80 backdrop-blur-xl border-b border-white/5 h-20 flex items-center justify-between px-8">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-green-500 rounded-xl flex items-center justify-center shadow-[0_0_20px_rgba(34,197,94,0.4)] text-xl">🐉</div>
+          <div className="flex flex-col">
+            <span className="font-black text-xl tracking-tight uppercase leading-none">Dragon</span>
+            <span className="text-[10px] text-green-500 font-bold tracking-[0.2em] uppercase">Bike</span>
+          </div>
         </div>
-        <button 
-          onClick={toggleLang}
-          className="bg-white/5 border border-white/10 px-4 py-1.5 rounded-xl text-[10px] font-bold uppercase hover:bg-white/10 transition-colors"
-        >
+        <button onClick={toggleLang} className="bg-white/5 border border-white/10 px-5 py-2 rounded-2xl text-[11px] font-bold uppercase hover:bg-white/10 transition-all">
           {lang === 'ru' ? 'English' : 'Русский'}
         </button>
       </nav>
 
-      <section className="relative h-[45vh] flex items-center justify-center pt-16">
-        <div className="absolute inset-0 mx-4 mt-2 overflow-hidden rounded-[2.5rem] border border-white/5 opacity-40">
-          <img src="/bridge.jpg" className="w-full h-full object-cover" alt="Danang" />
+      <section className="relative h-[60vh] flex items-center justify-center overflow-hidden text-center px-6 pt-16">
+        <div className="absolute inset-0 z-0">
+          <img src="https://static.vinwonders.com/2022/12/Dragon-Bridge-thumb.jpg" className="w-full h-full object-cover opacity-40" alt="Bridge" />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#05070a] via-[#05070a]/40 to-transparent" />
         </div>
-        <div className="relative z-10 text-center px-6">
-          <h1 className="text-4xl md:text-6xl font-black italic uppercase mb-2 leading-tight">{t[lang].title}</h1>
-          <p className="text-green-400 text-sm font-bold tracking-[0.3em] uppercase">{t[lang].sub}</p>
+        <div className="relative z-10">
+          <div className="inline-block mb-4 px-4 py-1.5 bg-green-500/10 border border-green-500/20 rounded-full">
+            <h2 className="text-green-500 text-[10px] font-black tracking-[0.4em] uppercase">{t[lang].sub}</h2>
+          </div>
+          <h1 className="text-4xl md:text-7xl font-bold mb-4 tracking-tight uppercase italic">{t[lang].title}</h1>
+          <p className="text-gray-400 text-lg md:text-xl font-light tracking-wide">{t[lang].location}</p>
         </div>
       </section>
 
-      <section className="max-w-7xl mx-auto px-6 py-6">
+      <section className="max-w-7xl mx-auto px-6 pb-24 -mt-10 relative z-20">
         {loading ? (
-          <div className="text-center py-20 text-white/50">{t[lang].loading}</div>
+          <div className="flex justify-center py-20"><div className="w-10 h-10 border-2 border-green-500 border-t-transparent rounded-full animate-spin" /></div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {bikes.map((s) => (
-              <div key={s.id} className="group bg-[#161d2f] rounded-[2rem] p-5 border border-white/5 flex flex-col h-full hover:border-green-500/30 transition-all shadow-xl">
-                <Link href={`/bike/${s.id}`} className="cursor-pointer flex-grow">
-                  <div className="h-44 overflow-hidden rounded-[1.5rem] mb-4 bg-black/10 flex items-center justify-center">
-                    <img src={s.image} className="w-full h-full object-contain p-2 group-hover:scale-110 transition-transform duration-500" alt={s.model} />
-                  </div>
-                  <h3 className="text-xl font-bold mb-4 group-hover:text-green-400 transition-colors">{s.model}</h3>
+              <div key={s.id} className="group bg-[#11141b] rounded-[2.5rem] border border-white/5 overflow-hidden transition-all hover:border-green-500/40 hover:shadow-2xl">
+                <Link href={`/bike/${s.id}`} className="block relative h-64 overflow-hidden bg-white/5">
+                  <img src={s.image} className="w-full h-full object-cover p-6 transition-transform duration-700 group-hover:scale-110" alt={s.model} />
+                  <div className="absolute top-6 right-6 bg-black/60 backdrop-blur-md px-3 py-1 rounded-full border border-white/10 text-[10px] font-bold">{s.year}</div>
                 </Link>
-                <div className="flex flex-col gap-4 pt-4 border-t border-white/5">
-                  <div className="grid grid-cols-2 gap-2">
+                <div className="p-8">
+                  <h3 className="text-2xl font-bold mb-1 uppercase tracking-tight">{s.model}</h3>
+                  <p className="text-gray-500 text-xs font-medium tracking-widest uppercase mb-6">{s.engine}cc • Automatic</p>
+                  <div className="flex items-center justify-between bg-black/40 rounded-[1.8rem] p-5 border border-white/5 mb-6">
                     <div>
-                      <span className="text-lg font-black">{s.price_day}</span>
-                      <p className="text-[8px] text-white/30 uppercase font-bold tracking-tighter">{t[lang].day}</p>
+                      <p className="text-[9px] text-gray-500 uppercase font-black mb-1">{t[lang].day}</p>
+                      <span className="text-xl font-bold text-white">{s.price_day}</span>
                     </div>
-                    <div className="border-l border-white/10 pl-3">
-                      <span className="text-lg font-black text-green-400">{s.price_month}</span>
-                      <p className="text-[8px] text-green-400/30 uppercase font-bold tracking-tighter">{t[lang].month}</p>
+                    <div className="w-[1px] h-8 bg-white/10" />
+                    <div className="text-right">
+                      <p className="text-[9px] text-green-500 uppercase font-black mb-1">{t[lang].month}</p>
+                      <span className="text-xl font-bold text-green-400">{s.price_month}</span>
                     </div>
                   </div>
-                  <a 
-                    href={`https://wa.me/${s.vendor_phone}?text=${lang === 'ru' ? 'Здравствуйте! Хочу узнать наличие' : 'Hello! I want to check availability'} ${s.model}`} 
-                    target="_blank" 
-                    className="w-full bg-green-600 py-3 rounded-xl font-bold text-[11px] uppercase text-center flex items-center justify-center gap-2 hover:bg-green-500 transition-all active:scale-95 shadow-lg shadow-green-900/20"
-                  >
-                    <span>💬</span> {t[lang].btn}
-                  </a>
+                  <div className="flex gap-3">
+                    <Link href={`/bike/${s.id}`} className="flex-1 text-center bg-white/5 border border-white/10 py-4 rounded-2xl font-bold text-[10px] uppercase transition-all hover:bg-white/10">Details</Link>
+                    <a href={`https://wa.me/${s.vendor_phone}?text=Hello ${s.model}`} target="_blank" className="flex-[1.5] bg-green-600 hover:bg-green-500 py-4 rounded-2xl font-bold text-[10px] uppercase text-center transition-all shadow-lg shadow-green-900/20">{t[lang].btn}</a>
+                  </div>
                 </div>
               </div>
             ))}
