@@ -56,7 +56,7 @@ export default function Home() {
   };
 
   return (
-    <main className="bg-[#05070a] min-h-screen text-white font-sans">
+    <main className="bg-[#05070a] min-h-screen text-white font-sans flex flex-col overflow-x-hidden">
       {/* Navigation */}
       <nav className="fixed top-0 w-full z-[100] bg-[#05070a]/80 backdrop-blur-xl border-b border-white/5 h-20 flex items-center justify-between px-8">
         <div className="flex items-center gap-3">
@@ -72,7 +72,7 @@ export default function Home() {
       </nav>
 
       {/* Hero Section */}
-      <section className="relative h-[60vh] flex items-center justify-center overflow-hidden text-center px-6 pt-16">
+      <section className="relative h-[60vh] flex items-center justify-center overflow-hidden text-center px-6 pt-16 flex-shrink-0">
         <div className="absolute inset-0 z-0">
           <img src="https://static.vinwonders.com/2022/12/Dragon-Bridge-thumb.jpg" className="w-full h-full object-cover opacity-40" alt="Bridge" />
           <div className="absolute inset-0 bg-gradient-to-t from-[#05070a] via-[#05070a]/40 to-transparent" />
@@ -87,7 +87,7 @@ export default function Home() {
       </section>
 
       {/* Grid Section */}
-      <section className="max-w-7xl mx-auto px-6 pb-24 -mt-10 relative z-20">
+      <section className="max-w-7xl mx-auto px-6 pb-24 -mt-10 relative z-20 flex-grow w-full">
         {loading ? (
           <div className="flex justify-center py-20"><div className="w-10 h-10 border-2 border-green-500 border-t-transparent rounded-full animate-spin" /></div>
         ) : (
@@ -122,6 +122,11 @@ export default function Home() {
           </div>
         )}
       </section>
+
+      {/* Фикс белого поля внизу */}
+      <footer className="w-full py-10 bg-[#05070a] text-center border-t border-white/5">
+        <p className="text-[10px] text-gray-600 font-bold uppercase tracking-[0.2em]">Dragon Bike Danang © 2026</p>
+      </footer>
     </main>
   );
 }
