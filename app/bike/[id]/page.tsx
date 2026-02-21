@@ -7,9 +7,9 @@ import Link from "next/link";
 export default function BikePage() {
   const params = useParams();
   
-  // 1. Инициализируем null, чтобы понять, что язык еще не считан
-  const [lang, setLang] = useState<'ru' | 'en' | null>(null);
-  
+  // Состояния
+  const [lang, setLang] = useState<'ru' | 'en'>('ru'); 
+  const [isReady, setIsReady] = useState(false); // Флаг готовности клиента
   const [bike, setBike] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [activePhoto, setActivePhoto] = useState('');
@@ -22,17 +22,23 @@ export default function BikePage() {
   const [isSubmitted, setIsSubmitted] = useState(false);
 
   useEffect(() => {
-    // 2. Считываем язык СТРОГО при загрузке клиента
-    const savedLang = localStorage.getItem('userLang') as 'ru' | 'en';
-    if (savedLang === 'en' || savedLang === 'ru') {
-      setLang(savedLang);
-    } else {
-      setLang('ru'); // Фоллбек, если ничего не сохранено
-    }
+    // 1. ПРОВЕРКА ПАМЯТИ
+    const savedLang = localStorage.getItem('userLang');
+    console.log("Found lang in localStorage:", savedLang); // Увидишь в консоли
 
+    if (savedLang === 'en' || savedLang === 'ru') {
+      setLang(savedLang as 'ru' | 'en');
+    } else {
+      setLang('ru');
+    }
+    
+    setIsReady(true); // Говорим приложению, что язык считан
+
+    // 2. РЕФЕРАЛ
     const savedRef = localStorage.getItem('referrer');
     if (savedRef) setRef(savedRef);
 
+    // 3. ДАННЫЕ БАЙКА
     async function loadBikeData() {
       const { data, error } = await supabase
         .from('scooters')
@@ -49,7 +55,6 @@ export default function BikePage() {
     if (params.id) loadBikeData();
   }, [params.id]);
 
-  // Переводы
   const t = {
     ru: { 
       back: "← Назад", engine: "Объем", year: "Год", day: "В сутки", month: "В месяц", 
@@ -69,13 +74,9 @@ export default function BikePage() {
     }
   };
 
-  // 3. ПОКА ЯЗЫК НЕ ОПРЕДЕЛЕН — НЕ РЕНДЕРИМ КОНТЕНТ (важно для фикса бага)
-  if (!lang || loading) {
-    return (
-      <div className="min-h-screen bg-[#05070a] flex items-center justify-center text-white italic uppercase tracking-widest">
-        {lang ? t[lang].loading : "..."}
-      </div>
-    );
+  // Пока клиент не определил язык из памяти, показываем пустой экран или лоадер
+  if (!isReady || loading) {
+    return <div className="min-h-screen bg-[#05070a] flex items-center justify-center text-white italic">...</div>;
   }
 
   if (!bike) return <div className="p-10 text-white text-center bg-[#05070a] min-h-screen">Bike not found</div>;
@@ -102,16 +103,15 @@ export default function BikePage() {
   const gallery = [bike.image, ...(bike.images_gallery ? bike.images_gallery.split(',').map((s: string) => s.trim()) : [])];
 
   return (
-    <main className="min-h-screen bg-[#05070a] text-white font-sans pb-20 selection:bg-green-500/30">
+    <main className="min-h-screen bg-[#05070a] text-white font-sans pb-20 selection:bg-green-500/30 text-left">
       <nav className="fixed top-0 w-full z-[100] bg-[#05070a]/80 backdrop-blur-xl border-b border-white/5 h-16 flex items-center px-6">
         <Link href="/" className="text-gray-500 uppercase text-[10px] font-black tracking-widest">
           {t[lang].back}
         </Link>
       </nav>
 
-      <div className="max-w-6xl mx-auto px-6 pt-24 text-left">
+      <div className="max-w-6xl mx-auto px-6 pt-24">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-start">
-          {/* Gallery */}
           <div className="space-y-6">
             <div className="aspect-[4/3] rounded-[2.5rem] overflow-hidden bg-[#11141b] border border-white/5">
               <img src={activePhoto} className="w-full h-full object-contain p-6" alt={bike.model} />
@@ -125,14 +125,12 @@ export default function BikePage() {
             </div>
           </div>
 
-          {/* Details */}
           <div>
             <h1 className="text-4xl md:text-6xl font-black uppercase italic mb-4 leading-tight tracking-tighter">{bike.model}</h1>
             <div className="flex gap-3 mb-8 text-[10px] font-black uppercase tracking-widest text-green-500">
               <span className="bg-green-500/10 px-4 py-2 rounded-xl">{bike.engine}CC</span>
               <span className="bg-white/5 px-4 py-2 rounded-xl text-white">{bike.year}</span>
             </div>
-
             <div className="grid grid-cols-2 gap-4 mb-10">
               <div className="bg-[#11141b] p-6 rounded-[2rem] border border-white/5">
                 <p className="text-[9px] text-gray-500 uppercase font-black mb-1">{t[lang].day}</p>
@@ -143,7 +141,6 @@ export default function BikePage() {
                 <p className="text-2xl font-bold text-green-400 italic tracking-tighter">{bike.price_month}</p>
               </div>
             </div>
-
             <button onClick={() => {setShowModal(true); setIsSubmitted(false);}} className="w-full bg-green-600 py-6 rounded-[2rem] font-black text-xs uppercase tracking-widest shadow-xl text-white active:scale-95 transition-transform">
               {t[lang].btn}
             </button>
@@ -151,7 +148,6 @@ export default function BikePage() {
         </div>
       </div>
 
-      {/* Modal */}
       {showModal && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/90 backdrop-blur-md" onClick={() => setShowModal(false)} />
