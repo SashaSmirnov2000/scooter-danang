@@ -6,26 +6,25 @@ export async function POST(req: Request) {
     const body = await req.json();
     
     const botToken = process.env.TELEGRAM_BOT_TOKEN;
-    // Используем твой ID 1920798985 напрямую, если переменная в Vercel не подхватилась
-    const adminChatId = process.env.TELEGRAM_CHAT_ID || "1920798985"; 
+    // Используем жестко прописанный ID как финальный вариант, если Vercel "молчит"
+    const adminChatId = process.env.TELEGRAM_CHAT_ID || "1920798985";
     
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
     if (!botToken) {
-      return NextResponse.json({ error: "Bot token missing in Vercel" }, { status: 500 });
+      return NextResponse.json({ error: "Token missing" }, { status: 500 });
     }
 
     // --- ЛОГИКА 1: /START ---
     if (body.message?.text?.includes('/start')) {
       const chatId = body.message.chat.id;
-      const welcomeMessage = "🇷🇺 **Добро пожаловать в каталог байков Дананга!**\n\n🆘 Менеджер: @dragonbikesupport";
       await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           chat_id: chatId,
-          text: welcomeMessage,
+          text: "🇷🇺 **Добро пожаловать в каталог байков Дананга!**\n\n🆘 Менеджер: @dragonbikesupport",
           parse_mode: "Markdown",
           reply_markup: {
             inline_keyboard: [[{ text: "🛵 Открыть каталог", web_app: { url: "https://scooter-danang.vercel.app" } }]]
@@ -41,7 +40,7 @@ export async function POST(req: Request) {
     if (bike_model) {
       let finalReferrer = referrer || 'нет';
       
-      // Поиск реферала
+      // Поиск реферала в базе
       if ((!referrer || referrer === 'нет') && telegram_id && supabaseUrl && supabaseKey) {
         try {
           const supabase = createClient(supabaseUrl, supabaseKey);
@@ -50,24 +49,23 @@ export async function POST(req: Request) {
         } catch (e) { console.log("DB skip"); }
       }
 
-      const adminText = `🔥 *Новый заказ!*\nБайк: ${bike_model}\nДаты: ${start_date} — ${end_date}\nКлиент: @${client_username}\nРеф: ${finalReferrer}`;
+      const adminText = `🔥 *Новый заказ!*\n\nБайк: ${bike_model}\nДаты: ${start_date} — ${end_date}\nКлиент: @${client_username}\nРеф: ${finalReferrer}`;
 
-      // 1. СНАЧАЛА ОТПРАВЛЯЕМ АДМИНУ (тебе)
-      const adminRes = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+      // 1. ОТПРАВКА АДМИНУ (СНАЧАЛА)
+      // Мы оборачиваем ID в Number(), чтобы Telegram не ругался на строку
+      const adminResponse = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          chat_id: Number(adminChatId), // Убеждаемся, что это число
+          chat_id: Number(adminChatId),
           text: adminText,
           parse_mode: 'Markdown',
         }),
       });
-      
-      const adminResult = await adminRes.json();
 
-      // 2. ПОТОМ КЛИЕНТУ
+      // 2. ОТПРАВКА КЛИЕНТУ (ПОТОМ)
       if (telegram_id && String(telegram_id) !== String(adminChatId)) {
-        const clientText = `🇷🇺 *Заявка принята!*\nМы уточняем наличие *${bike_model}*. Скоро свяжемся!`;
+        const clientText = `🇷🇺 *Заявка принята!*\nМы уточняем наличие *${bike_model}*. Скоро свяжемся!\nМенеджер: @dragonbikesupport\n\n---\n🇺🇸 *Request received!*\nChecking availability for *${bike_model}*. Wait for update!\nManager: @dragonbikesupport`;
         await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -79,15 +77,6 @@ export async function POST(req: Request) {
         });
       }
 
-      // Если админу не ушло, мы вернем ошибку в ответе (увидишь в консоли браузера)
-      if (!adminResult.ok) {
-        return NextResponse.json({ 
-          success: false, 
-          error: "Telegram rejected admin message", 
-          details: adminResult.description 
-        });
-      }
-
       return NextResponse.json({ success: true });
     }
 
@@ -95,4 +84,8 @@ export async function POST(req: Request) {
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
+}
+
+export async function GET() {
+  return NextResponse.json({ status: "alive" });
 }
