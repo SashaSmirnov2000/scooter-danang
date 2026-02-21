@@ -9,48 +9,35 @@ export async function POST(req: Request) {
     if (chatId) {
       const token = "8509212353:AAGV2SrquugQXKK5T8rQ3kAWdZAj7veb2OQ";
 
-      // 1. Сначала отправим просто текст (это точно сработает)
       if (text.includes('/start')) {
+        // Объединенный текст на двух языках
+        const welcomeMessage = 
+          "🇷🇺 **Добро пожаловать в каталог байков Дананга!**\n" +
+          "Мы предоставляем качественный сервис без лишних заморочек. Выбирайте и бронируйте в один клик!\n\n" +
+          "🇬🇧 **Welcome to the Danang bike catalog!**\n" +
+          "We provide high-quality service without any hassle. Choose and book in one click!";
+
         await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             chat_id: chatId,
-            text: "👋 Привет! Это DragonBike. Сейчас загружу каталог...",
+            text: welcomeMessage,
+            parse_mode: "Markdown",
             reply_markup: {
               inline_keyboard: [
-                [{ text: "🛵 Открыть каталог", web_app: { url: "https://scooter-danang.vercel.app" } }]
+                [
+                  { 
+                    text: "🛵 Open Catalog / Открыть каталог", 
+                    web_app: { url: "https://scooter-danang.vercel.app" } 
+                  }
+                ]
               ]
             }
           }),
         });
-
-        // 2. Сразу следом пробуем отправить фото
-        const photoId = "AgACAgIAAxkBAAIRiGmZiSTaUiKBUaabhXY8HVMDnC06AAJOFWsbOWfISP8aGxItMFEOAQADAgADcwADOgQ";
-        
-        await fetch(`https://api.telegram.org/bot${token}/sendPhoto`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            chat_id: chatId,
-            photo: photoId,
-            caption: "Нажми на кнопку выше или на 'Аренда байков' в меню!"
-          }),
-        });
-      } 
-      else {
-        // Ответ на любое другое сообщение
-        await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            chat_id: chatId,
-            text: "Я тебя понял! Чтобы запустить меню, нажми /start",
-          }),
-        });
       }
     }
-
     return NextResponse.json({ ok: true });
   } catch (error) {
     return NextResponse.json({ ok: false });
