@@ -17,31 +17,36 @@ export default function Home() {
   const [isSubmitted, setIsSubmitted] = useState(false);
 
   useEffect(() => {
-    // 1. Сначала загружаем язык
+    // 1. Загрузка языка
     const savedLang = localStorage.getItem('userLang') as 'ru' | 'en';
     if (savedLang) setLang(savedLang);
 
-    // 2. Логика реферала (ИСПРАВЛЕНО)
+    // 2. УСИЛЕННАЯ ЛОГИКА РЕФЕРАЛА
     const tg = (window as any).Telegram?.WebApp;
+    
+    // Пытаемся достать start_param тремя способами для надежности
+    let startParam = tg?.initDataUnsafe?.start_param;
+
+    if (!startParam) {
+      // Способ 2: Поиск в URL (tgWebAppStartParam)
+      const urlParams = new URLSearchParams(window.location.search);
+      startParam = urlParams.get('tgWebAppStartParam');
+    }
+
+    if (startParam) {
+      // Если нашли параметр — сохраняем и обновляем память
+      setRef(startParam);
+      localStorage.setItem('referrer', startParam);
+      console.log("Реферал определен:", startParam);
+    } else {
+      // Если в ссылке пусто — берем то, что сохранили раньше
+      const savedRef = localStorage.getItem('referrer');
+      if (savedRef) setRef(savedRef);
+    }
+
     if (tg) {
       tg.ready();
       tg.expand();
-      
-      const startParam = tg.initDataUnsafe?.start_param;
-      
-      if (startParam) {
-        // Если есть параметр в ссылке — он приоритетный, сохраняем его
-        setRef(startParam);
-        localStorage.setItem('referrer', startParam);
-      } else {
-        // Если в ссылке пусто, проверяем память телефона
-        const savedRef = localStorage.getItem('referrer');
-        if (savedRef) setRef(savedRef);
-      }
-    } else {
-        // Если открыто просто в браузере (не Mini App)
-        const savedRef = localStorage.getItem('referrer');
-        if (savedRef) setRef(savedRef);
     }
 
     // 3. Загрузка байков
@@ -88,7 +93,7 @@ export default function Home() {
       end_date: endDate,
       client_username: user?.username || 'web_user',
       telegram_id: user?.id,
-      referrer: ref // Используем текущее состояние ref
+      referrer: ref 
     };
 
     try {
@@ -229,7 +234,7 @@ export default function Home() {
                             <span className="text-green-500 font-black">{totalDays()}</span>
                         </div>
                     )}
-                    {/* Визуальный индикатор реферала (ИСПРАВЛЕНО) */}
+                    {/* Визуальный индикатор реферала */}
                     {ref && (
                         <div className="px-4 py-2 bg-green-500/10 rounded-xl border border-green-500/20 text-[9px] text-green-400 font-bold uppercase tracking-widest animate-pulse">
                            🔗 Ref: {ref}
