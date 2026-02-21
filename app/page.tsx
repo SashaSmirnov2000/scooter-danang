@@ -21,25 +21,22 @@ export default function Home() {
     const savedLang = localStorage.getItem('userLang') as 'ru' | 'en';
     if (savedLang) setLang(savedLang);
 
-    // 2. УСИЛЕННАЯ ЛОГИКА РЕФЕРАЛА
+    // 2. УЛЬТРА-ЛОГИКА РЕФЕРАЛА (Не исчезает при переходах)
     const tg = (window as any).Telegram?.WebApp;
     
-    // Пытаемся достать start_param тремя способами для надежности
-    let startParam = tg?.initDataUnsafe?.start_param;
+    // Пытаемся взять параметр из всех возможных мест
+    const urlParams = new URLSearchParams(window.location.search);
+    const startParamFromUrl = urlParams.get('tgWebAppStartParam');
+    const startParamFromTg = tg?.initDataUnsafe?.start_param;
+    
+    const activeRef = startParamFromUrl || startParamFromTg;
 
-    if (!startParam) {
-      // Способ 2: Поиск в URL (tgWebAppStartParam)
-      const urlParams = new URLSearchParams(window.location.search);
-      startParam = urlParams.get('tgWebAppStartParam');
-    }
-
-    if (startParam) {
-      // Если нашли параметр — сохраняем и обновляем память
-      setRef(startParam);
-      localStorage.setItem('referrer', startParam);
-      console.log("Реферал определен:", startParam);
+    if (activeRef) {
+      // Если нашли в ссылке — сохраняем "намертво"
+      setRef(activeRef);
+      localStorage.setItem('referrer', activeRef);
     } else {
-      // Если в ссылке пусто — берем то, что сохранили раньше
+      // Если в ссылке пусто (нажали назад), достаем из памяти
       const savedRef = localStorage.getItem('referrer');
       if (savedRef) setRef(savedRef);
     }
