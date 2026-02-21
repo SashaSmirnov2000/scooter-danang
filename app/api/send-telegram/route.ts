@@ -1,13 +1,16 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
+// Функция для маленькой паузы (иногда помогает избежать спам-фильтра Telegram)
+const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
+
 export async function POST(req: Request) {
   try {
     const body = await req.json();
     
     const botToken = process.env.TELEGRAM_BOT_TOKEN;
-    // Используем жестко прописанный ID как финальный вариант, если Vercel "молчит"
-    const adminChatId = process.env.TELEGRAM_CHAT_ID || "1920798985";
+    // Используем ваш ID как число. 
+    const adminId = 1920798985; 
     
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -40,7 +43,7 @@ export async function POST(req: Request) {
     if (bike_model) {
       let finalReferrer = referrer || 'нет';
       
-      // Поиск реферала в базе
+      // Поиск реферала
       if ((!referrer || referrer === 'нет') && telegram_id && supabaseUrl && supabaseKey) {
         try {
           const supabase = createClient(supabaseUrl, supabaseKey);
@@ -51,20 +54,22 @@ export async function POST(req: Request) {
 
       const adminText = `🔥 *Новый заказ!*\n\nБайк: ${bike_model}\nДаты: ${start_date} — ${end_date}\nКлиент: @${client_username}\nРеф: ${finalReferrer}`;
 
-      // 1. ОТПРАВКА АДМИНУ (СНАЧАЛА)
-      // Мы оборачиваем ID в Number(), чтобы Telegram не ругался на строку
-      const adminResponse = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+      // 1. ОТПРАВЛЯЕМ АДМИНУ ПЕРВЫМ
+      const adminRes = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          chat_id: Number(adminChatId),
+          chat_id: adminId, // Используем чистое число
           text: adminText,
           parse_mode: 'Markdown',
         }),
       });
 
-      // 2. ОТПРАВКА КЛИЕНТУ (ПОТОМ)
-      if (telegram_id && String(telegram_id) !== String(adminChatId)) {
+      // Ждем 1 секунду перед отправкой клиенту
+      await delay(1000);
+
+      // 2. ОТПРАВЛЯЕМ КЛИЕНТУ (если это не сам админ)
+      if (telegram_id && Number(telegram_id) !== adminId) {
         const clientText = `🇷🇺 *Заявка принята!*\nМы уточняем наличие *${bike_model}*. Скоро свяжемся!\nМенеджер: @dragonbikesupport\n\n---\n🇺🇸 *Request received!*\nChecking availability for *${bike_model}*. Wait for update!\nManager: @dragonbikesupport`;
         await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
           method: 'POST',
@@ -84,8 +89,4 @@ export async function POST(req: Request) {
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
-}
-
-export async function GET() {
-  return NextResponse.json({ status: "alive" });
 }
