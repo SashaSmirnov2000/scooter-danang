@@ -21,39 +21,49 @@ export default function Home() {
     const savedLang = localStorage.getItem('userLang') as 'ru' | 'en';
     if (savedLang) setLang(savedLang);
 
-    // 2. УСИЛЕННАЯ ЛОГИКА РЕФЕРАЛА ДЛЯ TELEGRAM
+    // 2. ФИНАЛЬНАЯ ЛОГИКА РЕФЕРАЛА (Тройная проверка)
     const initRefLogic = () => {
       const tg = (window as any).Telegram?.WebApp;
       const urlParams = new URLSearchParams(window.location.search);
       
-      // Ищем везде: в URL и в объекте Telegram
-      const startParamFromUrl = urlParams.get('tgWebAppStartParam');
-      const startParamFromTg = tg?.initDataUnsafe?.start_param;
-      const savedRef = localStorage.getItem('referrer');
+      // А. Проверка URL (для обычных браузеров)
+      const refFromUrl = urlParams.get('tgWebAppStartParam');
+      
+      // Б. Проверка стандартного поля Telegram
+      const refFromTgUnsafe = tg?.initDataUnsafe?.start_param;
 
-      const activeRef = startParamFromUrl || startParamFromTg;
+      // В. ГЛУБОКИЙ ПАРСИНГ (из сырых данных initData)
+      let refFromRaw = null;
+      if (tg?.initData) {
+        try {
+          const rawParams = new URLSearchParams(tg.initData);
+          const startParam = rawParams.get('start_param');
+          if (startParam) refFromRaw = startParam;
+        } catch (e) {
+          console.error("Error parsing initData", e);
+        }
+      }
+
+      const savedRef = localStorage.getItem('referrer');
+      const activeRef = refFromUrl || refFromTgUnsafe || refFromRaw;
 
       if (activeRef) {
         setRef(activeRef);
         localStorage.setItem('referrer', activeRef);
-        return true; // Нашли параметр
+        return true; 
       } else if (savedRef) {
         setRef(savedRef);
-        return true; // Взяли из памяти
+        return true;
       }
       return false;
     };
 
-    // Запускаем проверку сразу
+    // Запускаем серию проверок (Telegram может загрузить данные не сразу)
     initRefLogic();
-
-    // Повторяем проверку каждые 500мс в течение 2 секунд (на случай долгой загрузки TG)
     const interval = setInterval(() => {
-      const found = initRefLogic();
-      if (found) clearInterval(interval);
+      if (initRefLogic()) clearInterval(interval);
     }, 500);
-
-    setTimeout(() => clearInterval(interval), 2000);
+    setTimeout(() => clearInterval(interval), 3000); // Проверяем в течение 3 секунд
 
     const tg = (window as any).Telegram?.WebApp;
     if (tg) {
@@ -107,7 +117,7 @@ export default function Home() {
       end_date: endDate,
       client_username: user?.username || 'web_user',
       telegram_id: user?.id,
-      referrer: ref 
+      referrer: ref // Теперь передается гарантированно
     };
 
     try {
