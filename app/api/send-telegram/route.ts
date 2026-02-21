@@ -1,53 +1,60 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
+
 export async function POST(req: Request) {
   try {
     const body = await req.json();
+    
     const botToken = process.env.TELEGRAM_BOT_TOKEN;
     const MY_ADMIN_ID = 1920798985;
 
     if (!botToken) return NextResponse.json({ error: "No Token" }, { status: 500 });
 
+    // 1. ЛОГИКА ДЛЯ WEBHOOK
+    if (body.message) {
+      const chatId = body.message.chat.id;
+      await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text: "🇷🇺 **Добро пожаловать в каталог байков Дананга!**\n\n🆘 Менеджер: @dragonbikesupport",
+          parse_mode: "Markdown",
+          reply_markup: {
+            inline_keyboard: [[{ text: "🛵 Открыть каталог", web_app: { url: "https://scooter-danang.vercel.app" } }]]
+          }
+        }),
+      });
+      return NextResponse.json({ ok: true });
+    }
+
+    // 2. ЛОГИКА ДЛЯ ЗАКАЗА
     const { bike_model, start_date, end_date, client_username, telegram_id } = body;
 
     if (bike_model) {
-      let referrer = 'нет в базе';
+      // ПОИСК РЕФЕРАЛА В ТАБЛИЦЕ users
+      let referrer = 'нет';
 
-      // --- ИЗОЛИРОВАННЫЙ БЛОК БАЗЫ ДАННЫХ ---
-      try {
-        const supabase = createClient(
-          process.env.NEXT_PUBLIC_SUPABASE_URL!,
-          process.env.SUPABASE_SERVICE_ROLE_KEY!
-        );
+      if (telegram_id) {
+        const { data, error } = await supabase
+          .from('users')
+          .select('referrer')
+          .eq('telegram_id', Number(telegram_id))
+          .single();
 
-        if (telegram_id) {
-          // Преобразуем ID строго в число, так как в базе int8
-          const targetId = Number(telegram_id);
-          
-          const { data, error } = await supabase
-            .from('users')
-            .select('referrer')
-            .eq('telegram_id', targetId)
-            .maybeSingle();
-
-          if (error) {
-            console.error('Supabase Error:', error);
-            referrer = `ошибка запроса: ${error.message}`;
-          } else if (data && data.referrer) {
-            referrer = String(data.referrer);
-          }
+        if (!error && data?.referrer) {
+          referrer = data.referrer;
         }
-      } catch (dbException: any) {
-        console.error('Database Exception:', dbException);
-        referrer = `ошибка подключения: ${dbException.message}`;
       }
-      // ---------------------------------------
 
-      // ТЕКСТ ДЛЯ АДМИНА
-      const adminText = `🔥 *НОВЫЙ ЗАКАЗ*\n\n🛵 Байк: *${bike_model}*\n📅 Даты: ${start_date} - ${end_date}\n👤 Клиент: @${client_username}\n🆔 ID: \`${telegram_id}\`\n🔗 *Реферал:* ${referrer}`;
+      // СООБЩЕНИЕ АДМИНУ
+      const adminText = `🔥 *НОВЫЙ ЗАКАЗ*\nБайк: ${bike_model || 'не указан'}\nДаты: ${start_date || '?'} - ${end_date || '?'}\nКлиент: @${client_username || 'unknown'}\nРеф: ${referrer}`;
       
-      // ОТПРАВКА АДМИНУ (сработает даже если база упала)
       await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -58,14 +65,16 @@ export async function POST(req: Request) {
         }),
       });
 
-      // ОТПРАВКА КЛИЕНТУ
-      if (telegram_id && Number(telegram_id) !== MY_ADMIN_ID) {
+      // СООБЩЕНИЕ КЛИЕНТУ
+      if (telegram_id) {
+        const clientText = `🇷🇺 *Заявка принята!*\nМы уточняем наличие *${bike_model}*. Скоро свяжемся!\nМенеджер: @dragonbikesupport\n\n---\n🇺🇸 *Request received!*\nChecking availability for *${bike_model}*. Wait for update!\nManager: @dragonbikesupport`;
+
         await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
             chat_id: Number(telegram_id), 
-            text: `🇷🇺 *Заявка принята!*\nБайк: ${bike_model}\nМенеджер свяжется с вами.`, 
+            text: clientText, 
             parse_mode: 'Markdown' 
           }),
         });
@@ -75,8 +84,9 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json({ ok: true });
-  } catch (error: any) {
-    console.error('Global Route Error:', error.message);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+
+  } catch (error) {
+    console.error('Route handler error:', error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
