@@ -5,11 +5,17 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
     
-    // Используем твои переменные из Vercel
-    const botToken = process.env.TELEGRAM_BOT_TOKEN || "8509212353:AAGV2SrquugQXKK5T8rQ3kAWdZAj7veb2OQ";
-    const adminChatId = process.env.TELEGRAM_ADMIN_CHAT_ID || process.env.TELEGRAM_CHAT_ID;
+    // БЕЗОПАСНО: Все секреты берутся только из переменных окружения Vercel
+    const botToken = process.env.TELEGRAM_BOT_TOKEN;
+    const adminChatId = process.env.TELEGRAM_CHAT_ID || "1920798985"; 
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    // Защита: если токен не подтянулся из Vercel, код выдаст ошибку в логи, но не упадет
+    if (!botToken) {
+      console.error("ОШИБКА: TELEGRAM_BOT_TOKEN не найден в настройках Vercel!");
+      return NextResponse.json({ error: "Bot token is missing in server environment" }, { status: 500 });
+    }
 
     // --- ЛОГИКА 1: ОБРАБОТКА КОМАНДЫ /START ---
     if (body.message?.text?.includes('/start')) {
@@ -20,7 +26,6 @@ export async function POST(req: Request) {
         "🆘 По всем вопросам пишите менеджеру: @dragonbikesupport\n\n" +
         "--- \n\n" +
         "🇬🇧 **Welcome to the Danang bike catalog!**\n" +
-        "We provide high-quality service without any hassle.\n\n" +
         "🆘 For any questions, please contact our manager: @dragonbikesupport";
 
       await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
@@ -44,11 +49,10 @@ export async function POST(req: Request) {
     // --- ЛОГИКА 2: УВЕДОМЛЕНИЕ О БРОНИРОВАНИИ ---
     const { bike_model, start_date, end_date, client_username, telegram_id, referrer } = body;
 
-    if (bike_model && adminChatId) {
-      
-      // Ищем реферала в базе, если приложение его не передало
+    if (bike_model) {
       let finalReferrer = referrer || 'нет';
       
+      // Поиск реферала в базе
       if ((!referrer || referrer === 'нет') && telegram_id && supabaseUrl && supabaseKey) {
         try {
           const supabase = createClient(supabaseUrl, supabaseKey);
@@ -62,13 +66,14 @@ export async function POST(req: Request) {
             finalReferrer = data.referrer;
           }
         } catch (e) {
-          console.log("DB check failed, using default");
+          console.log("Supabase connection skipped or failed");
         }
       }
 
-      // Уведомление Админу (Твой текст + найденный реферал)
+      // Текст для админа
       const adminText = `🔥 *Новый заказ!*\nБайк: ${bike_model}\nДаты: ${start_date} — ${end_date}\nКлиент: @${client_username}\nРеф: ${finalReferrer}`;
       
+      // 1. Отправка Админу
       await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -79,8 +84,8 @@ export async function POST(req: Request) {
         }),
       });
 
-      // Уведомление Клиенту (Твой текст)
-      if (telegram_id) {
+      // 2. Отправка Клиенту (если это не сам админ)
+      if (telegram_id && String(telegram_id) !== String(adminChatId)) {
         const clientText = `🇷🇺 *Заявка принята!*\nМы уточняем наличие *${bike_model}*. Скоро свяжемся!\nМенеджер: @dragonbikesupport\n\n---\n🇺🇸 *Request received!*\nChecking availability for *${bike_model}*. Wait for update!\nManager: @dragonbikesupport`;
 
         await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
@@ -98,6 +103,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ ok: true });
   } catch (error: any) {
+    console.error("Critical error in route:", error.message);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
