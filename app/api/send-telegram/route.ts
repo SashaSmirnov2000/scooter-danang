@@ -12,9 +12,9 @@ export async function POST(req: Request) {
     const { bike_model, start_date, end_date, client_username, telegram_id } = body;
 
     if (bike_model) {
-      let referrer = 'не найден';
+      let referrer = 'нет в базе';
 
-      // Блок работы с Supabase полностью изолирован
+      // --- ИЗОЛИРОВАННЫЙ БЛОК БАЗЫ ДАННЫХ ---
       try {
         const supabase = createClient(
           process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -22,27 +22,32 @@ export async function POST(req: Request) {
         );
 
         if (telegram_id) {
-          // Превращаем ID в число и ищем
-          const tId = Number(telegram_id);
+          // Преобразуем ID строго в число, так как в базе int8
+          const targetId = Number(telegram_id);
+          
           const { data, error } = await supabase
             .from('users')
             .select('referrer')
-            .eq('telegram_id', tId)
-            .maybeSingle(); // maybeSingle не выдает ошибку, если запись одна или ноль
+            .eq('telegram_id', targetId)
+            .maybeSingle();
 
-          if (!error && data?.referrer) {
-            referrer = data.referrer;
+          if (error) {
+            console.error('Supabase Error:', error);
+            referrer = `ошибка запроса: ${error.message}`;
+          } else if (data && data.referrer) {
+            referrer = String(data.referrer);
           }
         }
-      } catch (dbErr) {
-        // Если база выдаст любую ошибку, мы просто запишем это в переменную и пойдем дальше
-        console.error("Supabase error:", dbErr);
-        referrer = "ошибка БД";
+      } catch (dbException: any) {
+        console.error('Database Exception:', dbException);
+        referrer = `ошибка подключения: ${dbException.message}`;
       }
+      // ---------------------------------------
 
-      // СООБЩЕНИЕ АДМИНУ (Придет в любом случае!)
-      const adminText = `🔥 *НОВЫЙ ЗАКАЗ*\n\n🛵 Байк: *${bike_model}*\n📅 Даты: ${start_date} - ${end_date}\n👤 Клиент: @${client_username}\n🔗 *Реферал:* ${referrer}`;
+      // ТЕКСТ ДЛЯ АДМИНА
+      const adminText = `🔥 *НОВЫЙ ЗАКАЗ*\n\n🛵 Байк: *${bike_model}*\n📅 Даты: ${start_date} - ${end_date}\n👤 Клиент: @${client_username}\n🆔 ID: \`${telegram_id}\`\n🔗 *Реферал:* ${referrer}`;
       
+      // ОТПРАВКА АДМИНУ (сработает даже если база упала)
       await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -53,14 +58,14 @@ export async function POST(req: Request) {
         }),
       });
 
-      // СООБЩЕНИЕ КЛИЕНТУ
+      // ОТПРАВКА КЛИЕНТУ
       if (telegram_id && Number(telegram_id) !== MY_ADMIN_ID) {
         await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
             chat_id: Number(telegram_id), 
-            text: `🇷🇺 *Заявка принята!*\nБайк: ${bike_model}\nСкоро свяжемся!`, 
+            text: `🇷🇺 *Заявка принята!*\nБайк: ${bike_model}\nМенеджер свяжется с вами.`, 
             parse_mode: 'Markdown' 
           }),
         });
@@ -71,7 +76,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ ok: true });
   } catch (error: any) {
-    console.error('API Error:', error.message);
+    console.error('Global Route Error:', error.message);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
