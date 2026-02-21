@@ -17,23 +17,34 @@ export default function Home() {
   const [isSubmitted, setIsSubmitted] = useState(false);
 
   useEffect(() => {
+    // 1. Сначала загружаем язык
     const savedLang = localStorage.getItem('userLang') as 'ru' | 'en';
     if (savedLang) setLang(savedLang);
 
+    // 2. Логика реферала (ИСПРАВЛЕНО)
     const tg = (window as any).Telegram?.WebApp;
     if (tg) {
       tg.ready();
       tg.expand();
+      
       const startParam = tg.initDataUnsafe?.start_param;
+      
       if (startParam) {
+        // Если есть параметр в ссылке — он приоритетный, сохраняем его
         setRef(startParam);
         localStorage.setItem('referrer', startParam);
+      } else {
+        // Если в ссылке пусто, проверяем память телефона
+        const savedRef = localStorage.getItem('referrer');
+        if (savedRef) setRef(savedRef);
       }
+    } else {
+        // Если открыто просто в браузере (не Mini App)
+        const savedRef = localStorage.getItem('referrer');
+        if (savedRef) setRef(savedRef);
     }
 
-    const savedRef = localStorage.getItem('referrer');
-    if (savedRef) setRef(savedRef);
-
+    // 3. Загрузка байков
     async function loadBikes() {
       const { data, error } = await supabase
         .from('scooters') 
@@ -59,7 +70,6 @@ export default function Home() {
     return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
   };
 
-  // ОБНОВЛЕННАЯ ФУНКЦИЯ БРОНИРОВАНИЯ
   const handleBooking = async (e: React.FormEvent) => {
     e.preventDefault();
     if (totalDays() <= 0) {
@@ -69,28 +79,22 @@ export default function Home() {
 
     setIsSubmitting(true);
     const tg = (window as any).Telegram?.WebApp;
-    
-    // Вытаскиваем данные пользователя из Telegram
     const user = tg?.initDataUnsafe?.user;
-    const username = user?.username || 'web_user';
-    const telegramId = user?.id; // Тот самый ID для ответного сообщения
-
+    
     const bookingData = {
       bike_id: selectedBike.id,
       bike_model: selectedBike.model,
       start_date: startDate,
       end_date: endDate,
-      client_username: username,
-      telegram_id: telegramId, // Передаем ID клиента
-      referrer: ref
+      client_username: user?.username || 'web_user',
+      telegram_id: user?.id,
+      referrer: ref // Используем текущее состояние ref
     };
 
     try {
-      // 1. Сохраняем в Supabase
       const { error: dbError } = await supabase.from('bookings').insert([bookingData]);
       if (dbError) throw dbError;
 
-      // 2. Отправляем уведомление в Telegram (Админу + Клиенту)
       await fetch('/api/send-telegram', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -109,26 +113,18 @@ export default function Home() {
     ru: { 
       title: "Аренда скутеров", sub: "DRAGON BIKE DANANG", location: "Дананг, Вьетнам",
       btn: "Забронировать", day: "в сутки", month: "в месяц",
-      modalTitle: "Бронирование",
-      modalSub: "Укажите даты, мы подтвердим наличие",
-      startDate: "Дата начала", endDate: "Дата окончания",
-      submitBtn: "Отправить запрос",
-      successTitle: "Заявка принята!",
-      successText: "Мы проверяем байк. Пожалуйста, ожидайте. Вы можете закрыть Mini App, мы пришлем вам уведомление.",
-      close: "Закрыть",
-      total: "Итого дней:"
+      modalTitle: "Бронирование", modalSub: "Укажите даты, мы подтвердим наличие",
+      startDate: "Дата начала", endDate: "Дата окончания", submitBtn: "Отправить запрос",
+      successTitle: "Заявка принята!", successText: "Мы проверяем байк. Пожалуйста, ожидайте. Вы можете закрыть Mini App, мы пришлем вам уведомление.",
+      close: "Закрыть", total: "Итого дней:"
     },
     en: { 
       title: "Scooter Rental", sub: "DRAGON BIKE DANANG", location: "Da Nang, Vietnam",
       btn: "Book Now", day: "per day", month: "per month",
-      modalTitle: "Booking",
-      modalSub: "Specify dates, we will confirm",
-      startDate: "Start Date", endDate: "End Date",
-      submitBtn: "Send Request",
-      successTitle: "Request Sent!",
-      successText: "We are checking availability. Please wait. You can close the Mini App, we will notify you.",
-      close: "Close",
-      total: "Total days:"
+      modalTitle: "Booking", modalSub: "Specify dates, we will confirm",
+      startDate: "Start Date", endDate: "End Date", submitBtn: "Send Request",
+      successTitle: "Request Sent!", successText: "We are checking availability. Please wait. You can close the Mini App, we will notify you.",
+      close: "Close", total: "Total days:"
     }
   };
 
@@ -204,7 +200,7 @@ export default function Home() {
       {selectedBike && (
         <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/90 backdrop-blur-md" onClick={() => setSelectedBike(null)} />
-          <div className="relative w-full max-w-md bg-[#11141b] border border-white/10 rounded-[2.5rem] p-7 animate-in slide-in-from-bottom duration-300 max-h-[95vh] overflow-y-auto shadow-2xl">
+          <div className="relative w-full max-w-md bg-[#11141b] border border-white/10 rounded-[2.5rem] p-7 shadow-2xl animate-in slide-in-from-bottom duration-300">
             {!isSubmitted ? (
               <form onSubmit={handleBooking} className="text-left">
                 <div className="w-full h-44 bg-white/5 rounded-[2rem] mb-6 flex items-center justify-center overflow-hidden border border-white/5">
@@ -217,23 +213,29 @@ export default function Home() {
                   <div>
                     <label className="text-[9px] text-gray-400 uppercase font-black mb-1.5 ml-4 block">{t[lang].startDate}</label>
                     <input required type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} 
-                    className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-white outline-none focus:border-green-500 transition-all text-sm appearance-none" 
-                    style={{ colorScheme: 'dark' }} />
+                    className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-white outline-none focus:border-green-500 transition-all text-sm appearance-none" style={{ colorScheme: 'dark' }} />
                   </div>
                   <div>
                     <label className="text-[9px] text-gray-400 uppercase font-black mb-1.5 ml-4 block">{t[lang].endDate}</label>
                     <input required type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} 
-                    className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-white outline-none focus:border-green-500 transition-all text-sm appearance-none" 
-                    style={{ colorScheme: 'dark' }} />
+                    className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-white outline-none focus:border-green-500 transition-all text-sm appearance-none" style={{ colorScheme: 'dark' }} />
                   </div>
                 </div>
 
-                {totalDays() > 0 && (
-                    <div className="mt-4 px-4 py-2 bg-white/5 rounded-xl inline-block border border-white/5">
-                        <span className="text-[10px] text-gray-400 uppercase font-bold">{t[lang].total} </span>
-                        <span className="text-green-500 font-black">{totalDays()}</span>
-                    </div>
-                )}
+                <div className="mt-4 flex flex-wrap gap-2 items-center">
+                    {totalDays() > 0 && (
+                        <div className="px-4 py-2 bg-white/5 rounded-xl border border-white/5 text-[10px]">
+                            <span className="text-gray-400 uppercase font-bold">{t[lang].total} </span>
+                            <span className="text-green-500 font-black">{totalDays()}</span>
+                        </div>
+                    )}
+                    {/* Визуальный индикатор реферала (ИСПРАВЛЕНО) */}
+                    {ref && (
+                        <div className="px-4 py-2 bg-green-500/10 rounded-xl border border-green-500/20 text-[9px] text-green-400 font-bold uppercase tracking-widest animate-pulse">
+                           🔗 Ref: {ref}
+                        </div>
+                    )}
+                </div>
 
                 <div className="flex gap-3 mt-8">
                   <button type="button" onClick={() => setSelectedBike(null)} className="flex-1 bg-white/5 py-4 rounded-2xl text-[10px] font-bold uppercase border border-white/10 text-white tracking-wider">{t[lang].close}</button>
