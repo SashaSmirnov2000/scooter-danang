@@ -51,7 +51,6 @@ export default function Home() {
     localStorage.setItem('userLang', newLang);
   };
 
-  // Расчет дней аренды
   const totalDays = () => {
     if (!startDate || !endDate) return 0;
     const start = new Date(startDate);
@@ -60,6 +59,7 @@ export default function Home() {
     return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
   };
 
+  // ОБНОВЛЕННАЯ ФУНКЦИЯ БРОНИРОВАНИЯ
   const handleBooking = async (e: React.FormEvent) => {
     e.preventDefault();
     if (totalDays() <= 0) {
@@ -69,7 +69,11 @@ export default function Home() {
 
     setIsSubmitting(true);
     const tg = (window as any).Telegram?.WebApp;
-    const username = tg?.initDataUnsafe?.user?.username || 'web_user';
+    
+    // Вытаскиваем данные пользователя из Telegram
+    const user = tg?.initDataUnsafe?.user;
+    const username = user?.username || 'web_user';
+    const telegramId = user?.id; // Тот самый ID для ответного сообщения
 
     const bookingData = {
       bike_id: selectedBike.id,
@@ -77,6 +81,7 @@ export default function Home() {
       start_date: startDate,
       end_date: endDate,
       client_username: username,
+      telegram_id: telegramId, // Передаем ID клиента
       referrer: ref
     };
 
@@ -85,7 +90,7 @@ export default function Home() {
       const { error: dbError } = await supabase.from('bookings').insert([bookingData]);
       if (dbError) throw dbError;
 
-      // 2. Отправляем уведомление в Telegram через API Route
+      // 2. Отправляем уведомление в Telegram (Админу + Клиенту)
       await fetch('/api/send-telegram', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

@@ -1,7 +1,6 @@
 "use client";
 import { useState, useEffect } from 'react';
 import { useParams } from "next/navigation";
-// Исправленный импорт: выходим из [id] -> bike -> app
 import { supabase } from "../../supabase"; 
 import Link from "next/link";
 
@@ -65,7 +64,8 @@ export default function BikePage() {
       back: "← Назад", engine: "Объем", year: "Год", day: "В сутки", month: "В месяц", 
       btn: "Забронировать", included: "Включено:",
       modalSub: "Укажите даты аренды", submitBtn: "Отправить запрос",
-      successTitle: "Заявка принята!", successText: "Мы свяжемся с вами в ближайшее время.",
+      successTitle: "Заявка принята!", 
+      successText: "Мы уточняем наличие байка. Наше время работы с 10:00 до 22:00. Ожидайте уведомление.",
       close: "Закрыть", features: ["2 шлема", "Поддержка 24/7", "Чистый байк"],
       labelStart: "Дата начала", labelEnd: "Дата окончания", loading: "Загрузка...",
       total: "Итого дней:"
@@ -74,13 +74,15 @@ export default function BikePage() {
       back: "← Back", engine: "Engine", year: "Year", day: "Per day", month: "Per month", 
       btn: "Book Now", included: "Included:",
       modalSub: "Select rental dates", submitBtn: "Send Request",
-      successTitle: "Success!", successText: "We will contact you shortly.",
+      successTitle: "Success!", 
+      successText: "We are checking availability. Working hours: 10 AM - 10 PM. Wait for notification.",
       close: "Close", features: ["2 Helmets", "24/7 Support", "Clean condition"],
       labelStart: "Start Date", labelEnd: "End Date", loading: "Loading...",
       total: "Total days:"
     }
   };
 
+  // ОБНОВЛЕННАЯ ФУНКЦИЯ ХЕНДЛЕР
   const handleBooking = async (e: React.FormEvent) => {
     e.preventDefault();
     if (totalDays() <= 0) {
@@ -90,7 +92,11 @@ export default function BikePage() {
 
     setIsSubmitting(true);
     const tg = (window as any).Telegram?.WebApp;
-    const username = tg?.initDataUnsafe?.user?.username || 'web_user';
+    
+    // Получаем данные пользователя из Telegram
+    const user = tg?.initDataUnsafe?.user;
+    const username = user?.username || 'web_user';
+    const telegramId = user?.id; // ID для уведомления клиента
 
     const bookingData = {
       bike_id: bike.id,
@@ -98,6 +104,7 @@ export default function BikePage() {
       start_date: startDate,
       end_date: endDate,
       client_username: username,
+      telegram_id: telegramId, // Передаем ID
       referrer: ref
     };
 
@@ -106,7 +113,7 @@ export default function BikePage() {
       const { error: dbError } = await supabase.from('bookings').insert([bookingData]);
       if (dbError) throw dbError;
 
-      // 2. Отправляем уведомление в Telegram (API Route)
+      // 2. Отправляем уведомление в Telegram (Админу + Клиенту)
       await fetch('/api/send-telegram', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
