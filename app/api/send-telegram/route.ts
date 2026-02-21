@@ -10,17 +10,17 @@ export async function POST(req: Request) {
     // Токен берем ТОЛЬКО из Vercel (безопасно)
     const botToken = process.env.TELEGRAM_BOT_TOKEN;
     
-    // Твой проверенный ID админа вставляем прямо в код числом
+    // Твой проверенный ID админа прописываем числом прямо в код
     const MY_ADMIN_ID = 1920798985; 
 
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
     if (!botToken) {
-      return NextResponse.json({ error: "TELEGRAM_BOT_TOKEN is missing in Vercel settings" }, { status: 500 });
+      return NextResponse.json({ error: "TELEGRAM_BOT_TOKEN is missing in Vercel" }, { status: 500 });
     }
 
-    // --- ЛОГИКА 1: ОТВЕТ НА СООБЩЕНИЯ В ТЕЛЕГРАМ (WEBHOOK) ---
+    // --- ЛОГИКА 1: WEBHOOK (Ответ на сообщения в самом Telegram) ---
     if (body.message) {
       const chatId = body.message.chat.id;
       const welcomeMessage = 
@@ -50,7 +50,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true });
     }
 
-    // --- ЛОГИКА 2: УВЕДОМЛЕНИЕ О БРОНИРОВАНИИ ---
+    // --- ЛОГИКА 2: УВЕДОМЛЕНИЕ О БРОНИРОВАНИИ (Из приложения) ---
     const { bike_model, start_date, end_date, client_username, telegram_id, referrer } = body;
 
     if (bike_model) {
@@ -68,7 +68,7 @@ export async function POST(req: Request) {
             
           if (data?.referrer) finalReferrer = data.referrer;
         } catch (e) {
-          console.log("Supabase error, using default referrer");
+          console.log("Supabase error, using default");
         }
       }
 
@@ -85,11 +85,11 @@ export async function POST(req: Request) {
         }),
       });
 
-      // Небольшая пауза для стабильности
+      // Небольшая пауза
       await delay(500);
 
-      // 2. ОТПРАВКА КЛИЕНТУ (Только если это не ты сам заказываешь)
-      if (telegram_id && Number(telegram_id) !== MY_ADMIN_ID) {
+      // 2. ОТПРАВКА КЛИЕНТУ
+      if (telegram_id) {
         const clientText = `🇷🇺 *Заявка принята!*\nМы уточняем наличие *${bike_model}*. Скоро свяжемся!\nМенеджер: @dragonbikesupport\n\n---\n🇺🇸 *Request received!*\nChecking availability for *${bike_model}*. Wait for update!\nManager: @dragonbikesupport`;
         
         await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
