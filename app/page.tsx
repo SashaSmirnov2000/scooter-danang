@@ -21,26 +21,41 @@ export default function Home() {
     const savedLang = localStorage.getItem('userLang') as 'ru' | 'en';
     if (savedLang) setLang(savedLang);
 
-    // 2. УЛЬТРА-ЛОГИКА РЕФЕРАЛА (Не исчезает при переходах)
-    const tg = (window as any).Telegram?.WebApp;
-    
-    // Пытаемся взять параметр из всех возможных мест
-    const urlParams = new URLSearchParams(window.location.search);
-    const startParamFromUrl = urlParams.get('tgWebAppStartParam');
-    const startParamFromTg = tg?.initDataUnsafe?.start_param;
-    
-    const activeRef = startParamFromUrl || startParamFromTg;
-
-    if (activeRef) {
-      // Если нашли в ссылке — сохраняем "намертво"
-      setRef(activeRef);
-      localStorage.setItem('referrer', activeRef);
-    } else {
-      // Если в ссылке пусто (нажали назад), достаем из памяти
+    // 2. УСИЛЕННАЯ ЛОГИКА РЕФЕРАЛА ДЛЯ TELEGRAM
+    const initRefLogic = () => {
+      const tg = (window as any).Telegram?.WebApp;
+      const urlParams = new URLSearchParams(window.location.search);
+      
+      // Ищем везде: в URL и в объекте Telegram
+      const startParamFromUrl = urlParams.get('tgWebAppStartParam');
+      const startParamFromTg = tg?.initDataUnsafe?.start_param;
       const savedRef = localStorage.getItem('referrer');
-      if (savedRef) setRef(savedRef);
-    }
 
+      const activeRef = startParamFromUrl || startParamFromTg;
+
+      if (activeRef) {
+        setRef(activeRef);
+        localStorage.setItem('referrer', activeRef);
+        return true; // Нашли параметр
+      } else if (savedRef) {
+        setRef(savedRef);
+        return true; // Взяли из памяти
+      }
+      return false;
+    };
+
+    // Запускаем проверку сразу
+    initRefLogic();
+
+    // Повторяем проверку каждые 500мс в течение 2 секунд (на случай долгой загрузки TG)
+    const interval = setInterval(() => {
+      const found = initRefLogic();
+      if (found) clearInterval(interval);
+    }, 500);
+
+    setTimeout(() => clearInterval(interval), 2000);
+
+    const tg = (window as any).Telegram?.WebApp;
     if (tg) {
       tg.ready();
       tg.expand();
@@ -56,6 +71,8 @@ export default function Home() {
       setLoading(false);
     }
     loadBikes();
+
+    return () => clearInterval(interval);
   }, []);
 
   const toggleLang = () => {
@@ -231,10 +248,9 @@ export default function Home() {
                             <span className="text-green-500 font-black">{totalDays()}</span>
                         </div>
                     )}
-                    {/* Визуальный индикатор реферала */}
                     {ref && (
                         <div className="px-4 py-2 bg-green-500/10 rounded-xl border border-green-500/20 text-[9px] text-green-400 font-bold uppercase tracking-widest animate-pulse">
-                           🔗 Ref: {ref}
+                            🔗 Ref: {ref}
                         </div>
                     )}
                 </div>

@@ -29,21 +29,36 @@ export default function BikePage() {
     }
     setIsReady(true);
 
-    // 2. РЕФЕРАЛ (УСИЛЕННАЯ ЛОГИКА)
-    const tg = (window as any).Telegram?.WebApp;
-    const urlParams = new URLSearchParams(window.location.search);
-    
-    // Пытаемся найти реф в URL или параметрах TG
-    const startParam = urlParams.get('tgWebAppStartParam') || tg?.initDataUnsafe?.start_param;
-    // Ищем в памяти то, что сохранили на главной
-    const savedRef = localStorage.getItem('referrer');
+    // 2. УСИЛЕННАЯ ЛОГИКА РЕФЕРАЛА (С интервалом проверки)
+    const initRefLogic = () => {
+      const tg = (window as any).Telegram?.WebApp;
+      const urlParams = new URLSearchParams(window.location.search);
+      
+      const startParamFromUrl = urlParams.get('tgWebAppStartParam');
+      const startParamFromTg = tg?.initDataUnsafe?.start_param;
+      const savedRef = localStorage.getItem('referrer');
 
-    if (startParam) {
-      setRef(startParam);
-      localStorage.setItem('referrer', startParam); // На случай, если зашли сразу на страницу байка
-    } else if (savedRef) {
-      setRef(savedRef); // Берем из памяти, если в URL уже пусто
-    }
+      const activeRef = startParamFromUrl || startParamFromTg;
+
+      if (activeRef) {
+        setRef(activeRef);
+        localStorage.setItem('referrer', activeRef);
+        return true; 
+      } else if (savedRef) {
+        setRef(savedRef);
+        return true;
+      }
+      return false;
+    };
+
+    // Первая проверка
+    initRefLogic();
+
+    // Повторяем проверку, если Telegram еще не отдал данные
+    const interval = setInterval(() => {
+      if (initRefLogic()) clearInterval(interval);
+    }, 500);
+    setTimeout(() => clearInterval(interval), 2000);
 
     // 3. ДАННЫЕ БАЙКА
     async function loadBikeData() {
@@ -60,6 +75,8 @@ export default function BikePage() {
       setLoading(false);
     }
     if (params.id) loadBikeData();
+
+    return () => clearInterval(interval);
   }, [params.id]);
 
   // Расчет дней аренды
@@ -112,7 +129,7 @@ export default function BikePage() {
       end_date: endDate,
       client_username: user?.username || 'web_user',
       telegram_id: user?.id,
-      referrer: ref // Используем найденный реферал
+      referrer: ref 
     };
 
     try {
@@ -166,7 +183,6 @@ export default function BikePage() {
             <div className="flex gap-3 mb-8 text-[10px] font-black uppercase tracking-widest text-green-500">
               <span className="bg-green-500/10 px-4 py-2 rounded-xl border border-green-500/20">{bike.engine}CC</span>
               <span className="bg-white/5 px-4 py-2 rounded-xl text-white border border-white/10">{bike.year}</span>
-              {/* Индикатор реферала в карточке */}
               {ref && (
                 <span className="bg-green-500 text-black px-4 py-2 rounded-xl font-bold animate-pulse">
                   REF: {ref}
