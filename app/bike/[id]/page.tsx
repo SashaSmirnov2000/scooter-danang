@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from 'react';
 import { useParams } from "next/navigation";
+// Исправленный импорт: выходим из [id] -> bike -> app
 import { supabase } from "../../supabase"; 
 import Link from "next/link";
 
