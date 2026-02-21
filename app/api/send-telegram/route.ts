@@ -1,12 +1,13 @@
 import { NextResponse } from 'next/server';
+import { supabase } from '@/app/supabase'; // Импортируем клиент Supabase
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
     
-    // Подтягиваем токен и ID из настроек Vercel
+    // Подтягиваем токен и ID из настроек Vercel или используем значения по умолчанию
     const botToken = process.env.TELEGRAM_BOT_TOKEN || "8509212353:AAGV2SrquugQXKK5T8rQ3kAWdZAj7veb2OQ";
-    const adminChatId = process.env.TELEGRAM_ADMIN_CHAT_ID || process.env.TELEGRAM_CHAT_ID;
+    const adminChatId = process.env.TELEGRAM_ADMIN_CHAT_ID || "6022301140"; // Замените на ваш ID, если он отличается
 
     // --- ЛОГИКА 1: ОБРАБОТКА КОМАНДЫ /START (ОТ БОТА) ---
     if (body.message?.text?.includes('/start')) {
@@ -39,11 +40,27 @@ export async function POST(req: Request) {
     }
 
     // --- ЛОГИКА 2: УВЕДОМЛЕНИЕ О БРОНИРОВАНИИ (ИЗ ПРИЛОЖЕНИЯ) ---
-    const { bike_model, start_date, end_date, client_username, telegram_id, referrer } = body;
+    const { bike_model, start_date, end_date, client_username, telegram_id } = body;
 
     if (bike_model && adminChatId) {
-      // Уведомление Админу
-      const adminText = `🔥 *Новый заказ!*\nБайк: ${bike_model}\nДаты: ${start_date} — ${end_date}\nКлиент: @${client_username}\nРеф: ${referrer || 'нет'}`;
+      
+      // Ищем реферала в базе данных Supabase по telegram_id
+      let finalReferrer = "Прямой заход";
+      
+      if (telegram_id) {
+        const { data: userData, error } = await supabase
+          .from('users')
+          .select('referrer')
+          .eq('telegram_id', telegram_id)
+          .single();
+
+        if (!error && userData?.referrer) {
+          finalReferrer = userData.referrer;
+        }
+      }
+
+      // Уведомление Админу (теперь с подтянутым рефералом)
+      const adminText = `🔥 *Новый заказ!*\n\n🛵 *Байк:* ${bike_model}\n📅 *Даты:* ${start_date} — ${end_date}\n👤 *Клиент:* @${client_username}\n🆔 *ID:* \`${telegram_id}\`\n\n🔗 *Реферал:* #${finalReferrer}`;
       
       await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
         method: 'POST',
@@ -74,7 +91,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ ok: true });
   } catch (error: any) {
-    console.error("Error:", error);
+    console.error("Error in send-telegram route:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
