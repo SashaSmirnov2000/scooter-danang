@@ -7,21 +7,14 @@ import Link from "next/link";
 export default function BikePage() {
   const params = useParams();
   
-  // Инициализируем язык сразу из localStorage, если мы на клиенте
-  const [lang, setLang] = useState<'ru' | 'en'>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('userLang');
-      return (saved === 'en' || saved === 'ru') ? saved : 'ru';
-    }
-    return 'ru';
-  });
-
+  // 1. Инициализируем null, чтобы понять, что язык еще не считан
+  const [lang, setLang] = useState<'ru' | 'en' | null>(null);
+  
   const [bike, setBike] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [activePhoto, setActivePhoto] = useState('');
   const [ref, setRef] = useState<string>('');
 
-  // Состояния для бронирования
   const [showModal, setShowModal] = useState(false);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -29,10 +22,12 @@ export default function BikePage() {
   const [isSubmitted, setIsSubmitted] = useState(false);
 
   useEffect(() => {
-    // Синхронизируем язык еще раз при монтировании
+    // 2. Считываем язык СТРОГО при загрузке клиента
     const savedLang = localStorage.getItem('userLang') as 'ru' | 'en';
-    if (savedLang && savedLang !== lang) {
+    if (savedLang === 'en' || savedLang === 'ru') {
       setLang(savedLang);
+    } else {
+      setLang('ru'); // Фоллбек, если ничего не сохранено
     }
 
     const savedRef = localStorage.getItem('referrer');
@@ -52,46 +47,9 @@ export default function BikePage() {
       setLoading(false);
     }
     if (params.id) loadBikeData();
-  }, [params.id, lang]);
+  }, [params.id]);
 
-  // Функция отправки в Telegram (Замени токен и ID!)
-  const sendTelegramMessage = async (booking: any) => {
-    const token = "ТВОЙ_ТОКЕН"; 
-    const chatId = "ТВОЙ_ID";   
-    const message = `🚀 *НОВАЯ ЗАЯВКА*\n\n🚲 Байк: ${booking.bike_model}\n📅 С: ${booking.start_date}\n📅 По: ${booking.end_date}\n👤 Клиент: @${booking.client_username}\n🔗 Реферал: ${ref || 'прямой заказ'}`;
-
-    try {
-      await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ chat_id: chatId, text: message, parse_mode: "Markdown" })
-      });
-    } catch (e) { console.error(e); }
-  };
-
-  const handleBooking = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSubmitting(true);
-    const tg = (window as any).Telegram?.WebApp;
-    const username = tg?.initDataUnsafe?.user?.username || 'web_user';
-
-    const bookingData = {
-      bike_id: bike.id,
-      bike_model: bike.model,
-      start_date: startDate,
-      end_date: endDate,
-      client_username: username,
-      referrer: ref
-    };
-
-    const { error } = await supabase.from('bookings').insert([bookingData]);
-    if (!error) {
-      await sendTelegramMessage(bookingData);
-      setIsSubmitted(true);
-    }
-    setIsSubmitting(false);
-  };
-
+  // Переводы
   const t = {
     ru: { 
       back: "← Назад", engine: "Объем", year: "Год", day: "В сутки", month: "В месяц", 
@@ -99,7 +57,7 @@ export default function BikePage() {
       modalSub: "Укажите даты аренды", submitBtn: "Отправить запрос",
       successTitle: "Заявка принята!", successText: "Мы свяжемся с вами в ближайшее время.",
       close: "Закрыть", features: ["2 шлема", "Поддержка 24/7", "Чистый байк"],
-      labelStart: "Дата начала", labelEnd: "Дата окончания"
+      labelStart: "Дата начала", labelEnd: "Дата окончания", loading: "Загрузка..."
     },
     en: { 
       back: "← Back", engine: "Engine", year: "Year", day: "Per day", month: "Per month", 
@@ -107,23 +65,48 @@ export default function BikePage() {
       modalSub: "Select rental dates", submitBtn: "Send Request",
       successTitle: "Success!", successText: "We will contact you shortly.",
       close: "Close", features: ["2 Helmets", "24/7 Support", "Clean condition"],
-      labelStart: "Start Date", labelEnd: "End Date"
+      labelStart: "Start Date", labelEnd: "End Date", loading: "Loading..."
     }
   };
 
-  if (loading) return <div className="min-h-screen bg-[#05070a] flex items-center justify-center text-white italic">Loading...</div>;
+  // 3. ПОКА ЯЗЫК НЕ ОПРЕДЕЛЕН — НЕ РЕНДЕРИМ КОНТЕНТ (важно для фикса бага)
+  if (!lang || loading) {
+    return (
+      <div className="min-h-screen bg-[#05070a] flex items-center justify-center text-white italic uppercase tracking-widest">
+        {lang ? t[lang].loading : "..."}
+      </div>
+    );
+  }
+
   if (!bike) return <div className="p-10 text-white text-center bg-[#05070a] min-h-screen">Bike not found</div>;
 
-  const gallery = [bike.image];
-  if (bike.images_gallery) {
-    const extra = bike.images_gallery.split(',').map((s: string) => s.trim());
-    gallery.push(...extra);
-  }
+  const handleBooking = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    const tg = (window as any).Telegram?.WebApp;
+    const username = tg?.initDataUnsafe?.user?.username || 'web_user';
+
+    const { error } = await supabase.from('bookings').insert([{
+      bike_id: bike.id,
+      bike_model: bike.model,
+      start_date: startDate,
+      end_date: endDate,
+      client_username: username,
+      referrer: ref
+    }]);
+
+    if (!error) setIsSubmitted(true);
+    setIsSubmitting(false);
+  };
+
+  const gallery = [bike.image, ...(bike.images_gallery ? bike.images_gallery.split(',').map((s: string) => s.trim()) : [])];
 
   return (
     <main className="min-h-screen bg-[#05070a] text-white font-sans pb-20 selection:bg-green-500/30">
       <nav className="fixed top-0 w-full z-[100] bg-[#05070a]/80 backdrop-blur-xl border-b border-white/5 h-16 flex items-center px-6">
-        <Link href="/" className="text-gray-500 uppercase text-[10px] font-black tracking-widest">{t[lang].back}</Link>
+        <Link href="/" className="text-gray-500 uppercase text-[10px] font-black tracking-widest">
+          {t[lang].back}
+        </Link>
       </nav>
 
       <div className="max-w-6xl mx-auto px-6 pt-24 text-left">
@@ -133,15 +116,13 @@ export default function BikePage() {
             <div className="aspect-[4/3] rounded-[2.5rem] overflow-hidden bg-[#11141b] border border-white/5">
               <img src={activePhoto} className="w-full h-full object-contain p-6" alt={bike.model} />
             </div>
-            {gallery.length > 1 && (
-              <div className="flex gap-4 overflow-x-auto pb-4 no-scrollbar">
-                {gallery.map((img, idx) => (
-                  <button key={idx} onClick={() => setActivePhoto(img)} className={`w-20 h-20 rounded-2xl overflow-hidden flex-shrink-0 border-2 transition-all ${activePhoto === img ? 'border-green-500' : 'border-transparent opacity-40'}`}>
-                    <img src={img} className="w-full h-full object-cover" alt="preview" />
-                  </button>
-                ))}
-              </div>
-            )}
+            <div className="flex gap-4 overflow-x-auto pb-4 no-scrollbar">
+              {gallery.map((img, idx) => (
+                <button key={idx} onClick={() => setActivePhoto(img)} className={`w-20 h-20 rounded-2xl overflow-hidden flex-shrink-0 border-2 transition-all ${activePhoto === img ? 'border-green-500' : 'border-transparent opacity-40'}`}>
+                  <img src={img} className="w-full h-full object-cover" alt="preview" />
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Details */}
@@ -179,7 +160,7 @@ export default function BikePage() {
               <form onSubmit={handleBooking} className="text-left">
                 <h2 className="text-2xl font-black mb-1 uppercase italic text-white tracking-tighter">{bike.model}</h2>
                 <p className="text-gray-500 text-[9px] uppercase font-black tracking-widest mb-8">{t[lang].modalSub}</p>
-                <div className="space-y-6 text-white">
+                <div className="space-y-6">
                   <div>
                     <label className="text-[9px] text-gray-500 uppercase font-black ml-4 block mb-2 tracking-widest">{t[lang].labelStart}</label>
                     <input required type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} 
