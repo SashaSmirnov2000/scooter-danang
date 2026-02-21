@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
+// Используем Service Role Key для надежного обхода RLS
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -9,7 +10,6 @@ const supabase = createClient(
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    
     const botToken = process.env.TELEGRAM_BOT_TOKEN;
     const MY_ADMIN_ID = 1920798985;
 
@@ -37,28 +37,33 @@ export async function POST(req: Request) {
     const { bike_model, start_date, end_date, client_username, telegram_id } = body;
 
     if (bike_model) {
+      let referrer = 'нет (прямой заход)';
 
-      // ПОИСК РЕФЕРАЛА
-      let referrer = 'нет';
+      // УЛУЧШЕННЫЙ ПОИСК РЕФЕРАЛА
       if (telegram_id) {
         try {
           const { data, error } = await supabase
             .from('users')
             .select('referrer')
             .eq('telegram_id', Number(telegram_id))
-            .single();
-          if (!error && data?.referrer) {
+            .maybeSingle(); // Используем maybeSingle вместо single, чтобы не вылетало в ошибку
+
+          if (error) {
+            console.error('SUPABASE ERROR:', error);
+          } else if (data?.referrer) {
             referrer = data.referrer;
           }
-          console.log('REFERRER LOOKUP:', { telegram_id, data, error });
+          
+          console.log('REFERRER LOOKUP SUCCESS:', { telegram_id, referrer });
         } catch (e) {
-          console.error('REFERRER LOOKUP ERROR:', e);
+          console.error('REFERRER LOOKUP EXCEPTION:', e);
         }
       }
 
       // СООБЩЕНИЕ АДМИНУ
+      const adminText = `🔥 *НОВЫЙ ЗАКАЗ*\n\n🛵 Байк: *${bike_model}*\n📅 Даты: ${start_date} - ${end_date}\n👤 Клиент: @${client_username}\n🆔 ID: \`${telegram_id}\`\n🔗 *Реф из БД:* ${referrer}`;
+      
       try {
-        const adminText = `🔥 *НОВЫЙ ЗАКАЗ*\nБайк: ${bike_model || 'не указан'}\nДаты: ${start_date || '?'} - ${end_date || '?'}\nКлиент: @${client_username || 'unknown'}\nРеф: ${referrer}`;
         const adminRes = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -69,16 +74,16 @@ export async function POST(req: Request) {
           }),
         });
         const adminJson = await adminRes.json();
-        console.log('ADMIN SEND RESULT:', JSON.stringify(adminJson));
+        console.log('ADMIN SEND RESULT:', adminJson);
       } catch (e) {
         console.error('ADMIN SEND ERROR:', e);
       }
 
       // СООБЩЕНИЕ КЛИЕНТУ
-      if (telegram_id) {
+      if (telegram_id && Number(telegram_id) !== MY_ADMIN_ID) {
         try {
-          const clientText = `🇷🇺 *Заявка принята!*\nМы уточняем наличие *${bike_model}*. Скоро свяжемся!\nМенеджер: @dragonbikesupport\n\n---\n🇺🇸 *Request received!*\nChecking availability for *${bike_model}*. Wait for update!\nManager: @dragonbikesupport`;
-          const clientRes = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+          const clientText = `🇷🇺 *Заявка принята!*\nМы уточняем наличие *${bike_model}*. Скоро свяжемся!`;
+          await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
@@ -87,8 +92,6 @@ export async function POST(req: Request) {
               parse_mode: 'Markdown' 
             }),
           });
-          const clientJson = await clientRes.json();
-          console.log('CLIENT SEND RESULT:', JSON.stringify(clientJson));
         } catch (e) {
           console.error('CLIENT SEND ERROR:', e);
         }
@@ -100,7 +103,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true });
 
   } catch (error) {
-    console.error('Route handler error:', error);
+    console.error('Critical Route Error:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
