@@ -6,7 +6,7 @@ import Link from "next/link";
 
 export default function BikePage() {
   const params = useParams();
-  const [lang, setLang] = useState<'ru' | 'en'>('ru');
+  const [lang, setLang] = useState<'ru' | 'en'>('ru'); // Значение по умолчанию
   const [bike, setBike] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [activePhoto, setActivePhoto] = useState('');
@@ -20,12 +20,17 @@ export default function BikePage() {
   const [isSubmitted, setIsSubmitted] = useState(false);
 
   useEffect(() => {
+    // 1. Сначала проверяем язык
     const savedLang = localStorage.getItem('userLang') as 'ru' | 'en';
-    if (savedLang) setLang(savedLang);
+    if (savedLang && (savedLang === 'ru' || savedLang === 'en')) {
+      setLang(savedLang);
+    }
 
+    // 2. Проверяем реферала
     const savedRef = localStorage.getItem('referrer');
     if (savedRef) setRef(savedRef);
 
+    // 3. Загружаем данные байка
     async function loadBikeData() {
       const { data, error } = await supabase
         .from('scooters')
@@ -33,7 +38,7 @@ export default function BikePage() {
         .eq('id', params.id)
         .single();
 
-      if (!error) {
+      if (!error && data) {
         setBike(data);
         setActivePhoto(data.image);
       }
@@ -42,10 +47,10 @@ export default function BikePage() {
     if (params.id) loadBikeData();
   }, [params.id]);
 
-  // ФУНКЦИЯ УВЕДОМЛЕНИЯ В ТЕЛЕГРАМ
+  // Функция отправки в Telegram
   const sendTelegramMessage = async (booking: any) => {
-    const token = "ТВОЙ_ТОКЕН_БОТА"; // Замени на токен от @BotFather
-    const chatId = "ТВОЙ_CHAT_ID";   // Замени на свой ID от @userinfobot
+    const token = "ТВОЙ_ТОКЕН_БОТА"; 
+    const chatId = "ТВОЙ_CHAT_ID";   
     const message = `🚀 *НОВАЯ ЗАЯВКА*\n\n🚲 Байк: ${booking.bike_model}\n📅 С: ${booking.start_date}\n📅 По: ${booking.end_date}\n👤 Клиент: @${booking.client_username}\n🔗 Реферал: ${ref || 'прямой заказ'}`;
 
     try {
@@ -55,7 +60,7 @@ export default function BikePage() {
         body: JSON.stringify({ chat_id: chatId, text: message, parse_mode: "Markdown" })
       });
     } catch (e) {
-      console.error("TG Notification error", e);
+      console.error("TG Error", e);
     }
   };
 
@@ -88,18 +93,20 @@ export default function BikePage() {
 
   const t = {
     ru: { 
-      back: "← Назад к списку", engine: "Объем", year: "Год", day: "В сутки", month: "В месяц", 
-      btn: "Забронировать", included: "В стоимость включено:",
+      back: "← Назад", engine: "Объем", year: "Год", day: "В сутки", month: "В месяц", 
+      btn: "Забронировать", included: "Включено:",
       modalSub: "Укажите даты аренды", submitBtn: "Отправить запрос",
-      successTitle: "Заявка принята!", successText: "Мы уточняем наличие байка. Можете закрыть приложение, мы напишем вам в личку.",
-      close: "Закрыть", features: ["2 защитных шлема", "Техподдержка 24/7", "Чистый байк"]
+      successTitle: "Заявка принята!", successText: "Мы свяжемся с вами в ближайшее время.",
+      close: "Закрыть", features: ["2 шлема", "Поддержка 24/7", "Чистый байк"],
+      labelStart: "Дата начала", labelEnd: "Дата окончания"
     },
     en: { 
-      back: "← Back to catalog", engine: "Engine", year: "Year", day: "Per day", month: "Per month", 
-      btn: "Book Now", included: "What's included:",
+      back: "← Back", engine: "Engine", year: "Year", day: "Per day", month: "Per month", 
+      btn: "Book Now", included: "Included:",
       modalSub: "Select rental dates", submitBtn: "Send Request",
-      successTitle: "Sent!", successText: "We are checking availability. You can close the app now.",
-      close: "Close", features: ["2 Helmets", "24/7 Support", "Clean condition"]
+      successTitle: "Success!", successText: "We will contact you shortly.",
+      close: "Close", features: ["2 Helmets", "24/7 Support", "Clean condition"],
+      labelStart: "Start Date", labelEnd: "End Date"
     }
   };
 
@@ -118,7 +125,7 @@ export default function BikePage() {
         <Link href="/" className="text-gray-500 uppercase text-[10px] font-black tracking-widest">{t[lang].back}</Link>
       </nav>
 
-      <div className="max-w-6xl mx-auto px-6 pt-24">
+      <div className="max-w-6xl mx-auto px-6 pt-24 text-left">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-start">
           <div className="space-y-6">
             <div className="aspect-[4/3] rounded-[2.5rem] overflow-hidden bg-[#11141b] border border-white/5">
@@ -135,8 +142,8 @@ export default function BikePage() {
             )}
           </div>
 
-          <div className="text-left">
-            <h1 className="text-4xl md:text-6xl font-black uppercase italic mb-4 leading-tight">{bike.model}</h1>
+          <div>
+            <h1 className="text-4xl md:text-6xl font-black uppercase italic mb-4 leading-tight tracking-tighter">{bike.model}</h1>
             <div className="flex gap-3 mb-8 text-[10px] font-black uppercase tracking-widest text-green-500">
               <span className="bg-green-500/10 px-4 py-2 rounded-xl">{bike.engine}CC</span>
               <span className="bg-white/5 px-4 py-2 rounded-xl text-white">{bike.year}</span>
@@ -145,15 +152,15 @@ export default function BikePage() {
             <div className="grid grid-cols-2 gap-4 mb-10">
               <div className="bg-[#11141b] p-6 rounded-[2rem] border border-white/5">
                 <p className="text-[9px] text-gray-500 uppercase font-black mb-1">{t[lang].day}</p>
-                <p className="text-2xl font-bold">{bike.price_day}</p>
+                <p className="text-2xl font-bold italic tracking-tighter">{bike.price_day}</p>
               </div>
               <div className="bg-[#11141b] p-6 rounded-[2rem] border border-green-500/20">
                 <p className="text-[9px] text-green-500 uppercase font-black mb-1">{t[lang].month}</p>
-                <p className="text-2xl font-bold text-green-400">{bike.price_month}</p>
+                <p className="text-2xl font-bold text-green-400 italic tracking-tighter">{bike.price_month}</p>
               </div>
             </div>
 
-            <button onClick={() => {setShowModal(true); setIsSubmitted(false);}} className="w-full bg-green-600 py-6 rounded-[2rem] font-black text-xs uppercase tracking-widest shadow-xl text-white">
+            <button onClick={() => {setShowModal(true); setIsSubmitted(false);}} className="w-full bg-green-600 py-6 rounded-[2rem] font-black text-xs uppercase tracking-widest shadow-xl text-white active:scale-95 transition-transform">
               {t[lang].btn}
             </button>
           </div>
@@ -166,20 +173,20 @@ export default function BikePage() {
           <div className="relative w-full max-w-md bg-[#11141b] border border-white/10 rounded-[2.5rem] p-8 shadow-2xl animate-in zoom-in-95 duration-200">
             {!isSubmitted ? (
               <form onSubmit={handleBooking} className="text-left">
-                <h2 className="text-2xl font-black mb-1 uppercase italic text-white">{bike.model}</h2>
+                <h2 className="text-2xl font-black mb-1 uppercase italic text-white tracking-tighter">{bike.model}</h2>
                 <p className="text-gray-500 text-[9px] uppercase font-black tracking-widest mb-8">{t[lang].modalSub}</p>
                 
                 <div className="space-y-6">
                   <div>
-                    <label className="text-[9px] text-gray-500 uppercase font-black ml-4 block mb-2 tracking-widest">Дата начала</label>
+                    <label className="text-[9px] text-gray-500 uppercase font-black ml-4 block mb-2 tracking-widest">{t[lang].labelStart}</label>
                     <input required type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} 
-                    className="w-full bg-[#1c1f26] border border-white/10 rounded-2xl p-5 text-white outline-none focus:border-green-500 transition-all font-bold appearance-none" 
+                    className="w-full bg-[#1c1f26] border border-white/10 rounded-2xl p-5 text-white outline-none focus:border-green-500 transition-all font-bold appearance-none min-h-[60px]" 
                     style={{ colorScheme: 'dark' }} />
                   </div>
                   <div>
-                    <label className="text-[9px] text-gray-500 uppercase font-black ml-4 block mb-2 tracking-widest">Дата окончания</label>
+                    <label className="text-[9px] text-gray-500 uppercase font-black ml-4 block mb-2 tracking-widest">{t[lang].labelEnd}</label>
                     <input required type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} 
-                    className="w-full bg-[#1c1f26] border border-white/10 rounded-2xl p-5 text-white outline-none focus:border-green-500 transition-all font-bold appearance-none" 
+                    className="w-full bg-[#1c1f26] border border-white/10 rounded-2xl p-5 text-white outline-none focus:border-green-500 transition-all font-bold appearance-none min-h-[60px]" 
                     style={{ colorScheme: 'dark' }} />
                   </div>
                 </div>
