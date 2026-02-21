@@ -17,7 +17,6 @@ export default function Home() {
   const [isSubmitted, setIsSubmitted] = useState(false);
 
   useEffect(() => {
-    // Читаем язык из памяти при загрузке
     const savedLang = localStorage.getItem('userLang') as 'ru' | 'en';
     if (savedLang) setLang(savedLang);
 
@@ -46,34 +45,59 @@ export default function Home() {
     loadBikes();
   }, []);
 
-  // Функция смены языка с сохранением
   const toggleLang = () => {
     const newLang = lang === 'ru' ? 'en' : 'ru';
     setLang(newLang);
-    localStorage.setItem('userLang', newLang); // Записываем в память
+    localStorage.setItem('userLang', newLang);
+  };
+
+  // Расчет дней аренды
+  const totalDays = () => {
+    if (!startDate || !endDate) return 0;
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    const diff = end.getTime() - start.getTime();
+    return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
   };
 
   const handleBooking = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (totalDays() <= 0) {
+        alert(lang === 'ru' ? "Дата окончания должна быть позже даты начала" : "End date must be after start date");
+        return;
+    }
+
     setIsSubmitting(true);
     const tg = (window as any).Telegram?.WebApp;
     const username = tg?.initDataUnsafe?.user?.username || 'web_user';
 
-    const { error } = await supabase.from('bookings').insert([{
+    const bookingData = {
       bike_id: selectedBike.id,
       bike_model: selectedBike.model,
       start_date: startDate,
       end_date: endDate,
       client_username: username,
       referrer: ref
-    }]);
+    };
 
-    if (!error) {
+    try {
+      // 1. Сохраняем в Supabase
+      const { error: dbError } = await supabase.from('bookings').insert([bookingData]);
+      if (dbError) throw dbError;
+
+      // 2. Отправляем уведомление в Telegram через API Route
+      await fetch('/api/send-telegram', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(bookingData),
+      });
+
       setIsSubmitted(true);
-    } else {
+    } catch (error: any) {
       alert("Error: " + error.message);
+    } finally {
+      setIsSubmitting(false);
     }
-    setIsSubmitting(false);
   };
 
   const t = {
@@ -86,7 +110,8 @@ export default function Home() {
       submitBtn: "Отправить запрос",
       successTitle: "Заявка принята!",
       successText: "Мы проверяем байк. Пожалуйста, ожидайте. Вы можете закрыть Mini App, мы пришлем вам уведомление.",
-      close: "Закрыть"
+      close: "Закрыть",
+      total: "Итого дней:"
     },
     en: { 
       title: "Scooter Rental", sub: "DRAGON BIKE DANANG", location: "Da Nang, Vietnam",
@@ -97,14 +122,14 @@ export default function Home() {
       submitBtn: "Send Request",
       successTitle: "Request Sent!",
       successText: "We are checking availability. Please wait. You can close the Mini App, we will notify you.",
-      close: "Close"
+      close: "Close",
+      total: "Total days:"
     }
   };
 
   return (
     <main className="bg-[#05070a] min-h-screen text-white font-sans flex flex-col overflow-x-hidden selection:bg-green-500/30">
       
-      {/* Navigation */}
       <nav className="fixed top-0 w-full z-[100] bg-[#05070a]/80 backdrop-blur-xl border-b border-white/5 h-20 flex items-center justify-between px-8">
         <div className="flex items-center gap-3 text-left">
           <div className="w-10 h-10 bg-green-500 rounded-xl flex items-center justify-center shadow-[0_0_20px_rgba(34,197,94,0.4)] text-xl">🐉</div>
@@ -113,13 +138,11 @@ export default function Home() {
             <span className="text-[10px] text-green-500 font-bold tracking-[0.2em] uppercase">Bike</span>
           </div>
         </div>
-        {/* ИСПРАВЛЕННАЯ КНОПКА */}
         <button onClick={toggleLang} className="bg-white/5 border border-white/10 px-5 py-2 rounded-2xl text-[11px] font-bold uppercase active:scale-95 transition-all text-white">
           {lang === 'ru' ? 'English' : 'Русский'}
         </button>
       </nav>
 
-      {/* Hero Section */}
       <section className="relative h-[45vh] flex items-center justify-center text-center px-6 pt-16">
         <div className="absolute inset-0 z-0 opacity-30">
           <img src="https://static.vinwonders.com/2022/12/Dragon-Bridge-thumb.jpg" className="w-full h-full object-cover" alt="Bridge" />
@@ -131,7 +154,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Bikes Grid */}
       <section className="max-w-7xl mx-auto px-6 pb-24 -mt-10 relative z-20 w-full">
         {loading ? (
           <div className="flex justify-center py-20"><div className="w-10 h-10 border-2 border-green-500 border-t-transparent rounded-full animate-spin" /></div>
@@ -174,7 +196,6 @@ export default function Home() {
         )}
       </section>
 
-      {/* MODAL WINDOW */}
       {selectedBike && (
         <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/90 backdrop-blur-md" onClick={() => setSelectedBike(null)} />
@@ -186,6 +207,7 @@ export default function Home() {
                 </div>
                 <h2 className="text-2xl font-bold mb-1 uppercase italic tracking-tight text-white">{selectedBike.model}</h2>
                 <p className="text-gray-500 text-[10px] uppercase font-bold tracking-widest mb-6">{t[lang].modalSub}</p>
+                
                 <div className="space-y-4">
                   <div>
                     <label className="text-[9px] text-gray-400 uppercase font-black mb-1.5 ml-4 block">{t[lang].startDate}</label>
@@ -200,9 +222,19 @@ export default function Home() {
                     style={{ colorScheme: 'dark' }} />
                   </div>
                 </div>
+
+                {totalDays() > 0 && (
+                    <div className="mt-4 px-4 py-2 bg-white/5 rounded-xl inline-block border border-white/5">
+                        <span className="text-[10px] text-gray-400 uppercase font-bold">{t[lang].total} </span>
+                        <span className="text-green-500 font-black">{totalDays()}</span>
+                    </div>
+                )}
+
                 <div className="flex gap-3 mt-8">
                   <button type="button" onClick={() => setSelectedBike(null)} className="flex-1 bg-white/5 py-4 rounded-2xl text-[10px] font-bold uppercase border border-white/10 text-white tracking-wider">{t[lang].close}</button>
-                  <button type="submit" disabled={isSubmitting} className="flex-[2.2] bg-green-600 py-4 rounded-2xl text-[10px] font-bold uppercase shadow-lg shadow-green-900/40 text-white tracking-widest">{isSubmitting ? '...' : t[lang].submitBtn}</button>
+                  <button type="submit" disabled={isSubmitting} className="flex-[2.2] bg-green-600 py-4 rounded-2xl text-[10px] font-bold uppercase shadow-lg shadow-green-900/40 text-white tracking-widest">
+                    {isSubmitting ? '...' : t[lang].submitBtn}
+                  </button>
                 </div>
               </form>
             ) : (

@@ -9,7 +9,7 @@ export default function BikePage() {
   
   // Состояния
   const [lang, setLang] = useState<'ru' | 'en'>('ru'); 
-  const [isReady, setIsReady] = useState(false); // Флаг готовности клиента
+  const [isReady, setIsReady] = useState(false); 
   const [bike, setBike] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [activePhoto, setActivePhoto] = useState('');
@@ -22,17 +22,12 @@ export default function BikePage() {
   const [isSubmitted, setIsSubmitted] = useState(false);
 
   useEffect(() => {
-    // 1. ПРОВЕРКА ПАМЯТИ
+    // 1. ЧИТАЕМ ЯЗЫК
     const savedLang = localStorage.getItem('userLang');
-    console.log("Found lang in localStorage:", savedLang); // Увидишь в консоли
-
     if (savedLang === 'en' || savedLang === 'ru') {
       setLang(savedLang as 'ru' | 'en');
-    } else {
-      setLang('ru');
     }
-    
-    setIsReady(true); // Говорим приложению, что язык считан
+    setIsReady(true);
 
     // 2. РЕФЕРАЛ
     const savedRef = localStorage.getItem('referrer');
@@ -55,6 +50,15 @@ export default function BikePage() {
     if (params.id) loadBikeData();
   }, [params.id]);
 
+  // Расчет дней аренды
+  const totalDays = () => {
+    if (!startDate || !endDate) return 0;
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    const diff = end.getTime() - start.getTime();
+    return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
+  };
+
   const t = {
     ru: { 
       back: "← Назад", engine: "Объем", year: "Год", day: "В сутки", month: "В месяц", 
@@ -62,7 +66,8 @@ export default function BikePage() {
       modalSub: "Укажите даты аренды", submitBtn: "Отправить запрос",
       successTitle: "Заявка принята!", successText: "Мы свяжемся с вами в ближайшее время.",
       close: "Закрыть", features: ["2 шлема", "Поддержка 24/7", "Чистый байк"],
-      labelStart: "Дата начала", labelEnd: "Дата окончания", loading: "Загрузка..."
+      labelStart: "Дата начала", labelEnd: "Дата окончания", loading: "Загрузка...",
+      total: "Итого дней:"
     },
     en: { 
       back: "← Back", engine: "Engine", year: "Year", day: "Per day", month: "Per month", 
@@ -70,42 +75,60 @@ export default function BikePage() {
       modalSub: "Select rental dates", submitBtn: "Send Request",
       successTitle: "Success!", successText: "We will contact you shortly.",
       close: "Close", features: ["2 Helmets", "24/7 Support", "Clean condition"],
-      labelStart: "Start Date", labelEnd: "End Date", loading: "Loading..."
+      labelStart: "Start Date", labelEnd: "End Date", loading: "Loading...",
+      total: "Total days:"
     }
   };
 
-  // Пока клиент не определил язык из памяти, показываем пустой экран или лоадер
-  if (!isReady || loading) {
-    return <div className="min-h-screen bg-[#05070a] flex items-center justify-center text-white italic">...</div>;
-  }
-
-  if (!bike) return <div className="p-10 text-white text-center bg-[#05070a] min-h-screen">Bike not found</div>;
-
   const handleBooking = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (totalDays() <= 0) {
+      alert(lang === 'ru' ? "Выберите корректные даты" : "Select valid dates");
+      return;
+    }
+
     setIsSubmitting(true);
     const tg = (window as any).Telegram?.WebApp;
     const username = tg?.initDataUnsafe?.user?.username || 'web_user';
 
-    const { error } = await supabase.from('bookings').insert([{
+    const bookingData = {
       bike_id: bike.id,
       bike_model: bike.model,
       start_date: startDate,
       end_date: endDate,
       client_username: username,
       referrer: ref
-    }]);
+    };
 
-    if (!error) setIsSubmitted(true);
-    setIsSubmitting(false);
+    try {
+      // 1. Сохраняем в Supabase
+      const { error: dbError } = await supabase.from('bookings').insert([bookingData]);
+      if (dbError) throw dbError;
+
+      // 2. Отправляем уведомление в Telegram (API Route)
+      await fetch('/api/send-telegram', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(bookingData),
+      });
+
+      setIsSubmitted(true);
+    } catch (err: any) {
+      alert("Error: " + err.message);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
+
+  if (!isReady || loading) return <div className="min-h-screen bg-[#05070a] flex items-center justify-center text-white italic">...</div>;
+  if (!bike) return <div className="p-10 text-white text-center bg-[#05070a] min-h-screen">Bike not found</div>;
 
   const gallery = [bike.image, ...(bike.images_gallery ? bike.images_gallery.split(',').map((s: string) => s.trim()) : [])];
 
   return (
     <main className="min-h-screen bg-[#05070a] text-white font-sans pb-20 selection:bg-green-500/30 text-left">
       <nav className="fixed top-0 w-full z-[100] bg-[#05070a]/80 backdrop-blur-xl border-b border-white/5 h-16 flex items-center px-6">
-        <Link href="/" className="text-gray-500 uppercase text-[10px] font-black tracking-widest">
+        <Link href="/" className="text-gray-500 uppercase text-[10px] font-black tracking-widest hover:text-white transition-colors">
           {t[lang].back}
         </Link>
       </nav>
@@ -113,12 +136,12 @@ export default function BikePage() {
       <div className="max-w-6xl mx-auto px-6 pt-24">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-start">
           <div className="space-y-6">
-            <div className="aspect-[4/3] rounded-[2.5rem] overflow-hidden bg-[#11141b] border border-white/5">
+            <div className="aspect-[4/3] rounded-[2.5rem] overflow-hidden bg-[#11141b] border border-white/5 shadow-2xl">
               <img src={activePhoto} className="w-full h-full object-contain p-6" alt={bike.model} />
             </div>
             <div className="flex gap-4 overflow-x-auto pb-4 no-scrollbar">
               {gallery.map((img, idx) => (
-                <button key={idx} onClick={() => setActivePhoto(img)} className={`w-20 h-20 rounded-2xl overflow-hidden flex-shrink-0 border-2 transition-all ${activePhoto === img ? 'border-green-500' : 'border-transparent opacity-40'}`}>
+                <button key={idx} onClick={() => setActivePhoto(img)} className={`w-20 h-20 rounded-2xl overflow-hidden flex-shrink-0 border-2 transition-all ${activePhoto === img ? 'border-green-500 shadow-[0_0_15px_rgba(34,197,94,0.3)]' : 'border-transparent opacity-40 hover:opacity-100'}`}>
                   <img src={img} className="w-full h-full object-cover" alt="preview" />
                 </button>
               ))}
@@ -128,20 +151,20 @@ export default function BikePage() {
           <div>
             <h1 className="text-4xl md:text-6xl font-black uppercase italic mb-4 leading-tight tracking-tighter">{bike.model}</h1>
             <div className="flex gap-3 mb-8 text-[10px] font-black uppercase tracking-widest text-green-500">
-              <span className="bg-green-500/10 px-4 py-2 rounded-xl">{bike.engine}CC</span>
-              <span className="bg-white/5 px-4 py-2 rounded-xl text-white">{bike.year}</span>
+              <span className="bg-green-500/10 px-4 py-2 rounded-xl border border-green-500/20">{bike.engine}CC</span>
+              <span className="bg-white/5 px-4 py-2 rounded-xl text-white border border-white/10">{bike.year}</span>
             </div>
             <div className="grid grid-cols-2 gap-4 mb-10">
               <div className="bg-[#11141b] p-6 rounded-[2rem] border border-white/5">
                 <p className="text-[9px] text-gray-500 uppercase font-black mb-1">{t[lang].day}</p>
                 <p className="text-2xl font-bold italic tracking-tighter">{bike.price_day}</p>
               </div>
-              <div className="bg-[#11141b] p-6 rounded-[2rem] border border-green-500/20">
+              <div className="bg-[#11141b] p-6 rounded-[2rem] border border-green-500/20 shadow-[0_0_30px_rgba(34,197,94,0.05)]">
                 <p className="text-[9px] text-green-500 uppercase font-black mb-1">{t[lang].month}</p>
                 <p className="text-2xl font-bold text-green-400 italic tracking-tighter">{bike.price_month}</p>
               </div>
             </div>
-            <button onClick={() => {setShowModal(true); setIsSubmitted(false);}} className="w-full bg-green-600 py-6 rounded-[2rem] font-black text-xs uppercase tracking-widest shadow-xl text-white active:scale-95 transition-transform">
+            <button onClick={() => {setShowModal(true); setIsSubmitted(false);}} className="w-full bg-green-600 py-6 rounded-[2rem] font-black text-xs uppercase tracking-widest shadow-xl shadow-green-900/20 text-white active:scale-95 transition-transform">
               {t[lang].btn}
             </button>
           </div>
@@ -158,21 +181,31 @@ export default function BikePage() {
                 <p className="text-gray-500 text-[9px] uppercase font-black tracking-widest mb-8">{t[lang].modalSub}</p>
                 <div className="space-y-6">
                   <div>
-                    <label className="text-[9px] text-gray-500 uppercase font-black ml-4 block mb-2 tracking-widest">{t[lang].labelStart}</label>
+                    <label className="text-[9px] text-gray-400 uppercase font-black ml-4 block mb-2 tracking-widest">{t[lang].labelStart}</label>
                     <input required type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} 
                     className="w-full bg-[#1c1f26] border border-white/10 rounded-2xl p-5 text-white outline-none focus:border-green-500 transition-all font-bold appearance-none min-h-[60px]" 
                     style={{ colorScheme: 'dark' }} />
                   </div>
                   <div>
-                    <label className="text-[9px] text-gray-500 uppercase font-black ml-4 block mb-2 tracking-widest">{t[lang].labelEnd}</label>
+                    <label className="text-[9px] text-gray-400 uppercase font-black ml-4 block mb-2 tracking-widest">{t[lang].labelEnd}</label>
                     <input required type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} 
                     className="w-full bg-[#1c1f26] border border-white/10 rounded-2xl p-5 text-white outline-none focus:border-green-500 transition-all font-bold appearance-none min-h-[60px]" 
                     style={{ colorScheme: 'dark' }} />
                   </div>
                 </div>
+
+                {totalDays() > 0 && (
+                  <div className="mt-6 px-4 py-2 bg-green-500/5 rounded-xl inline-block border border-green-500/10">
+                    <span className="text-[10px] text-gray-400 uppercase font-bold">{t[lang].total} </span>
+                    <span className="text-green-500 font-black">{totalDays()}</span>
+                  </div>
+                )}
+
                 <div className="flex gap-3 mt-10">
                   <button type="button" onClick={() => setShowModal(false)} className="flex-1 bg-white/5 py-5 rounded-2xl text-[10px] font-black uppercase text-gray-400 tracking-widest">{t[lang].close}</button>
-                  <button type="submit" disabled={isSubmitting} className="flex-[2] bg-green-600 py-5 rounded-2xl text-[10px] font-black uppercase text-white tracking-widest shadow-lg shadow-green-900/40">{isSubmitting ? '...' : t[lang].submitBtn}</button>
+                  <button type="submit" disabled={isSubmitting} className="flex-[2] bg-green-600 py-5 rounded-2xl text-[10px] font-black uppercase text-white tracking-widest shadow-lg shadow-green-900/40">
+                    {isSubmitting ? '...' : t[lang].submitBtn}
+                  </button>
                 </div>
               </form>
             ) : (
