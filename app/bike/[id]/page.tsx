@@ -29,9 +29,21 @@ export default function BikePage() {
     }
     setIsReady(true);
 
-    // 2. РЕФЕРАЛ
+    // 2. РЕФЕРАЛ (УСИЛЕННАЯ ЛОГИКА)
+    const tg = (window as any).Telegram?.WebApp;
+    const urlParams = new URLSearchParams(window.location.search);
+    
+    // Пытаемся найти реф в URL или параметрах TG
+    const startParam = urlParams.get('tgWebAppStartParam') || tg?.initDataUnsafe?.start_param;
+    // Ищем в памяти то, что сохранили на главной
     const savedRef = localStorage.getItem('referrer');
-    if (savedRef) setRef(savedRef);
+
+    if (startParam) {
+      setRef(startParam);
+      localStorage.setItem('referrer', startParam); // На случай, если зашли сразу на страницу байка
+    } else if (savedRef) {
+      setRef(savedRef); // Берем из памяти, если в URL уже пусто
+    }
 
     // 3. ДАННЫЕ БАЙКА
     async function loadBikeData() {
@@ -82,7 +94,6 @@ export default function BikePage() {
     }
   };
 
-  // ОБНОВЛЕННАЯ ФУНКЦИЯ ХЕНДЛЕР
   const handleBooking = async (e: React.FormEvent) => {
     e.preventDefault();
     if (totalDays() <= 0) {
@@ -92,28 +103,22 @@ export default function BikePage() {
 
     setIsSubmitting(true);
     const tg = (window as any).Telegram?.WebApp;
-    
-    // Получаем данные пользователя из Telegram
     const user = tg?.initDataUnsafe?.user;
-    const username = user?.username || 'web_user';
-    const telegramId = user?.id; // ID для уведомления клиента
-
+    
     const bookingData = {
       bike_id: bike.id,
       bike_model: bike.model,
       start_date: startDate,
       end_date: endDate,
-      client_username: username,
-      telegram_id: telegramId, // Передаем ID
-      referrer: ref
+      client_username: user?.username || 'web_user',
+      telegram_id: user?.id,
+      referrer: ref // Используем найденный реферал
     };
 
     try {
-      // 1. Сохраняем в Supabase
       const { error: dbError } = await supabase.from('bookings').insert([bookingData]);
       if (dbError) throw dbError;
 
-      // 2. Отправляем уведомление в Telegram (Админу + Клиенту)
       await fetch('/api/send-telegram', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -161,6 +166,12 @@ export default function BikePage() {
             <div className="flex gap-3 mb-8 text-[10px] font-black uppercase tracking-widest text-green-500">
               <span className="bg-green-500/10 px-4 py-2 rounded-xl border border-green-500/20">{bike.engine}CC</span>
               <span className="bg-white/5 px-4 py-2 rounded-xl text-white border border-white/10">{bike.year}</span>
+              {/* Индикатор реферала в карточке */}
+              {ref && (
+                <span className="bg-green-500 text-black px-4 py-2 rounded-xl font-bold animate-pulse">
+                  REF: {ref}
+                </span>
+              )}
             </div>
             <div className="grid grid-cols-2 gap-4 mb-10">
               <div className="bg-[#11141b] p-6 rounded-[2rem] border border-white/5">
@@ -202,12 +213,19 @@ export default function BikePage() {
                   </div>
                 </div>
 
-                {totalDays() > 0 && (
-                  <div className="mt-6 px-4 py-2 bg-green-500/5 rounded-xl inline-block border border-green-500/10">
-                    <span className="text-[10px] text-gray-400 uppercase font-bold">{t[lang].total} </span>
-                    <span className="text-green-500 font-black">{totalDays()}</span>
-                  </div>
-                )}
+                <div className="flex gap-2 items-center mt-6">
+                  {totalDays() > 0 && (
+                    <div className="px-4 py-2 bg-green-500/5 rounded-xl border border-green-500/10">
+                      <span className="text-[10px] text-gray-400 uppercase font-bold">{t[lang].total} </span>
+                      <span className="text-green-500 font-black">{totalDays()}</span>
+                    </div>
+                  )}
+                  {ref && (
+                    <div className="px-4 py-2 bg-green-500/10 rounded-xl border border-green-500/20 text-[9px] text-green-400 font-bold uppercase">
+                      🔗 Ref: {ref}
+                    </div>
+                  )}
+                </div>
 
                 <div className="flex gap-3 mt-10">
                   <button type="button" onClick={() => setShowModal(false)} className="flex-1 bg-white/5 py-5 rounded-2xl text-[10px] font-black uppercase text-gray-400 tracking-widest">{t[lang].close}</button>
