@@ -5,23 +5,23 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
     
-    // Берем данные из Vercel
+    // 1. ПРОВЕРКА НАСТРОЕК (Берем из твоего Vercel)
     const botToken = process.env.TELEGRAM_BOT_TOKEN;
     const adminChatId = process.env.TELEGRAM_CHAT_ID;
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-    // ВАЖНО: Если бот шлет пустоту, мы пропишем это в тексте
-    let debugInfo = "";
+    // Если нет токена или ID админа, сразу выходим с ошибкой в консоль
+    if (!botToken || !adminChatId) {
+      console.error("Missing TG config in Vercel env");
+      return NextResponse.json({ error: "Config missing" }, { status: 500 });
+    }
 
-    if (!botToken) debugInfo += "❌ Токен бота не найден в Vercel\n";
-    if (!adminChatId) debugInfo += "❌ ID админа не найден в Vercel\n";
+    const { bike_model, start_date, end_date, client_username, telegram_id } = body;
 
-    const { bike_model, client_username, telegram_id } = body;
-
-    let finalReferrer = "Не определен (база не ответила)";
-
-    // Пробуем достать реферала
+    // --- ЛОГИКА 1: ПОИСК РЕФЕРАЛА В БАЗЕ ---
+    let finalReferrer = "Прямой заход";
+    
     if (telegram_id && supabaseUrl && supabaseKey) {
       try {
         const supabase = createClient(supabaseUrl, supabaseKey);
@@ -31,26 +31,23 @@ export async function POST(req: Request) {
           .eq('telegram_id', telegram_id)
           .maybeSingle();
 
-        if (data?.referrer) {
+        if (!error && data?.referrer) {
           finalReferrer = data.referrer;
-        } else if (error) {
-          finalReferrer = `Ошибка базы: ${error.message}`;
-        } else {
-          finalReferrer = "Пользователь не найден в таблице users";
         }
       } catch (e) {
-        finalReferrer = "Критическая ошибка подключения к базе";
+        console.error("Database skip:", e);
       }
     }
 
-    const adminText = `🔔 **ТЕСТ УВЕДОМЛЕНИЯ**\n\n` +
-                      `🛵 Байк: ${bike_model || "не передан"}\n` +
-                      `👤 Клиент: @${client_username || "неизвестно"}\n` +
-                      `🔗 Реферал: ${finalReferrer}\n\n` +
-                      `${debugInfo}`;
+    // --- ЛОГИКА 2: ОТПРАВКА АДМИНУ ---
+    const adminText = `🔥 *НОВЫЙ ЗАКАЗ!*\n\n` +
+                      `🛵 *Байк:* ${bike_model || 'не указан'}\n` +
+                      `📅 *Даты:* ${start_date} — ${end_date}\n` +
+                      `👤 *Клиент:* @${client_username}\n` +
+                      `🆔 *ID:* \`${telegram_id}\`\n\n` +
+                      `🔗 *РЕФЕРАЛ:* #${finalReferrer}`;
 
-    // Пытаемся отправить
-    const res = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+    const adminRes = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -60,8 +57,27 @@ export async function POST(req: Request) {
       }),
     });
 
-    return NextResponse.json({ ok: true });
+    // --- ЛОГИКА 3: ОТПРАВКА КЛИЕНТУ ---
+    if (telegram_id) {
+      const clientText = `🇷🇺 *Заявка принята!*\nМенеджер скоро свяжется с вами для подтверждения бронирования *${bike_model}*.`;
+      await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: telegram_id,
+          text: clientText,
+          parse_mode: 'Markdown',
+        }),
+      });
+    }
+
+    return NextResponse.json({ success: true });
   } catch (error: any) {
+    console.error("Final catch error:", error.message);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
+}
+
+export async function GET() {
+  return NextResponse.json({ status: "alive" });
 }
