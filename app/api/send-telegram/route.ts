@@ -37,47 +37,61 @@ export async function POST(req: Request) {
     const { bike_model, start_date, end_date, client_username, telegram_id } = body;
 
     if (bike_model) {
-      // ПОИСК РЕФЕРАЛА В ТАБЛИЦЕ users
+
+      // ПОИСК РЕФЕРАЛА
       let referrer = 'нет';
-
       if (telegram_id) {
-        const { data, error } = await supabase
-          .from('users')
-          .select('referrer')
-          .eq('telegram_id', Number(telegram_id))
-          .single();
-
-        if (!error && data?.referrer) {
-          referrer = data.referrer;
+        try {
+          const { data, error } = await supabase
+            .from('users')
+            .select('referrer')
+            .eq('telegram_id', Number(telegram_id))
+            .single();
+          if (!error && data?.referrer) {
+            referrer = data.referrer;
+          }
+          console.log('REFERRER LOOKUP:', { telegram_id, data, error });
+        } catch (e) {
+          console.error('REFERRER LOOKUP ERROR:', e);
         }
       }
 
       // СООБЩЕНИЕ АДМИНУ
-      const adminText = `🔥 *НОВЫЙ ЗАКАЗ*\nБайк: ${bike_model || 'не указан'}\nДаты: ${start_date || '?'} - ${end_date || '?'}\nКлиент: @${client_username || 'unknown'}\nРеф: ${referrer}`;
-      
-      await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          chat_id: MY_ADMIN_ID, 
-          text: adminText, 
-          parse_mode: 'Markdown' 
-        }),
-      });
-
-      // СООБЩЕНИЕ КЛИЕНТУ
-      if (telegram_id) {
-        const clientText = `🇷🇺 *Заявка принята!*\nМы уточняем наличие *${bike_model}*. Скоро свяжемся!\nМенеджер: @dragonbikesupport\n\n---\n🇺🇸 *Request received!*\nChecking availability for *${bike_model}*. Wait for update!\nManager: @dragonbikesupport`;
-
-        await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+      try {
+        const adminText = `🔥 *НОВЫЙ ЗАКАЗ*\nБайк: ${bike_model || 'не указан'}\nДаты: ${start_date || '?'} - ${end_date || '?'}\nКлиент: @${client_username || 'unknown'}\nРеф: ${referrer}`;
+        const adminRes = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
-            chat_id: Number(telegram_id), 
-            text: clientText, 
+            chat_id: MY_ADMIN_ID, 
+            text: adminText, 
             parse_mode: 'Markdown' 
           }),
         });
+        const adminJson = await adminRes.json();
+        console.log('ADMIN SEND RESULT:', JSON.stringify(adminJson));
+      } catch (e) {
+        console.error('ADMIN SEND ERROR:', e);
+      }
+
+      // СООБЩЕНИЕ КЛИЕНТУ
+      if (telegram_id) {
+        try {
+          const clientText = `🇷🇺 *Заявка принята!*\nМы уточняем наличие *${bike_model}*. Скоро свяжемся!\nМенеджер: @dragonbikesupport\n\n---\n🇺🇸 *Request received!*\nChecking availability for *${bike_model}*. Wait for update!\nManager: @dragonbikesupport`;
+          const clientRes = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+              chat_id: Number(telegram_id), 
+              text: clientText, 
+              parse_mode: 'Markdown' 
+            }),
+          });
+          const clientJson = await clientRes.json();
+          console.log('CLIENT SEND RESULT:', JSON.stringify(clientJson));
+        } catch (e) {
+          console.error('CLIENT SEND ERROR:', e);
+        }
       }
 
       return NextResponse.json({ ok: true });
