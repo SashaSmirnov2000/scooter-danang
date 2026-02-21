@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-// Функция для маленькой паузы (иногда помогает избежать спам-фильтра Telegram)
 const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
 
 export async function POST(req: Request) {
@@ -9,7 +8,6 @@ export async function POST(req: Request) {
     const body = await req.json();
     
     const botToken = process.env.TELEGRAM_BOT_TOKEN;
-    // Используем ваш ID как число. 
     const adminId = 1920798985; 
     
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -19,31 +17,45 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Token missing" }, { status: 500 });
     }
 
-    // --- ЛОГИКА 1: /START ---
-    if (body.message?.text?.includes('/start')) {
+    // --- ЛОГИКА 1: ОБРАБОТКА ЛЮБЫХ СООБЩЕНИЙ БОТУ (Webhook) ---
+    // Это заставит бота отвечать тебе в Telegram, когда ты ему пишешь
+    if (body.message) {
       const chatId = body.message.chat.id;
+      const isStart = body.message.text?.includes('/start');
+      
+      const welcomeMessage = 
+        "🇷🇺 **Добро пожаловать в каталог байков Дананга!**\n" +
+        "Мы предоставляем качественный сервис без лишних заморочек.\n\n" +
+        "🆘 По всем вопросам пишите менеджеру: @dragonbikesupport\n\n" +
+        "--- \n\n" +
+        "🇬🇧 **Welcome to the Danang bike catalog!**\n" +
+        "We provide high-quality service without any hassle.\n\n" +
+        "🆘 For any questions, please contact our manager: @dragonbikesupport";
+
       await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           chat_id: chatId,
-          text: "🇷🇺 **Добро пожаловать в каталог байков Дананга!**\n\n🆘 Менеджер: @dragonbikesupport",
+          text: welcomeMessage,
           parse_mode: "Markdown",
           reply_markup: {
-            inline_keyboard: [[{ text: "🛵 Открыть каталог", web_app: { url: "https://scooter-danang.vercel.app" } }]]
+            inline_keyboard: [[{ 
+              text: "🛵 Open Catalog / Открыть каталог", 
+              web_app: { url: "https://scooter-danang.vercel.app" } 
+            }]]
           }
         }),
       });
       return NextResponse.json({ ok: true });
     }
 
-    // --- ЛОГИКА 2: БРОНИРОВАНИЕ ---
+    // --- ЛОГИКА 2: УВЕДОМЛЕНИЕ О БРОНИРОВАНИИ ---
     const { bike_model, start_date, end_date, client_username, telegram_id, referrer } = body;
 
     if (bike_model) {
       let finalReferrer = referrer || 'нет';
       
-      // Поиск реферала
       if ((!referrer || referrer === 'нет') && telegram_id && supabaseUrl && supabaseKey) {
         try {
           const supabase = createClient(supabaseUrl, supabaseKey);
@@ -55,22 +67,22 @@ export async function POST(req: Request) {
       const adminText = `🔥 *Новый заказ!*\n\nБайк: ${bike_model}\nДаты: ${start_date} — ${end_date}\nКлиент: @${client_username}\nРеф: ${finalReferrer}`;
 
       // 1. ОТПРАВЛЯЕМ АДМИНУ ПЕРВЫМ
-      const adminRes = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+      await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          chat_id: adminId, // Используем чистое число
+          chat_id: adminId,
           text: adminText,
           parse_mode: 'Markdown',
         }),
       });
 
-      // Ждем 1 секунду перед отправкой клиенту
       await delay(1000);
 
       // 2. ОТПРАВЛЯЕМ КЛИЕНТУ (если это не сам админ)
       if (telegram_id && Number(telegram_id) !== adminId) {
         const clientText = `🇷🇺 *Заявка принята!*\nМы уточняем наличие *${bike_model}*. Скоро свяжемся!\nМенеджер: @dragonbikesupport\n\n---\n🇺🇸 *Request received!*\nChecking availability for *${bike_model}*. Wait for update!\nManager: @dragonbikesupport`;
+        
         await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -89,4 +101,8 @@ export async function POST(req: Request) {
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
+}
+
+export async function GET() {
+  return NextResponse.json({ status: "alive" });
 }
