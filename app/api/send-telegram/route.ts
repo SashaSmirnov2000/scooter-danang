@@ -1,23 +1,46 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
-
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    
     const botToken = process.env.TELEGRAM_BOT_TOKEN;
     const MY_ADMIN_ID = 1920798985;
 
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+
     if (!botToken) return NextResponse.json({ error: "No Token" }, { status: 500 });
 
-    // 1. ЛОГИКА ДЛЯ WEBHOOK
+    // 1. ЛОГИКА ДЛЯ WEBHOOK (Когда юзер пишет боту)
     if (body.message) {
       const chatId = body.message.chat.id;
+      const username = body.message.from?.username || 'unknown';
+      const text = body.message.text || '';
+
+      // ПРОВЕРЯЕМ/СОЗДАЕМ ЮЗЕРА, ЧТОБЫ ОН ПОПАЛ В ТАБЛИЦУ
+      if (text.startsWith('/start')) {
+        const startParam = text.split(' ')[1]; // Если зашел по ссылке ?start=alex
+        
+        // Проверяем, есть ли уже такой юзер
+        const { data: existingUser } = await supabase
+          .from('users')
+          .select('id')
+          .eq('telegram_id', chatId)
+          .maybeSingle();
+
+        if (!existingUser) {
+          // Если юзера нет — создаем его!
+          await supabase.from('users').insert([{
+            telegram_id: chatId,
+            username: username,
+            referrer: startParam || 'direct'
+          }]);
+        }
+      }
+
       await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -33,11 +56,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true });
     }
 
-    // 2. ЛОГИКА ДЛЯ ЗАКАЗА
+    // 2. ЛОГИКА ДЛЯ ЗАКАЗА (Из Mini App)
     const { bike_model, start_date, end_date, client_username, telegram_id } = body;
 
     if (bike_model) {
-      // ПОИСК РЕФЕРАЛА В ТАБЛИЦЕ users
       let referrer = 'нет';
 
       if (telegram_id) {
@@ -45,15 +67,19 @@ export async function POST(req: Request) {
           .from('users')
           .select('referrer')
           .eq('telegram_id', Number(telegram_id))
-          .single();
+          .maybeSingle(); // Безопасный метод
 
         if (!error && data?.referrer) {
-          referrer = data.referrer;
+          // Экранируем подчеркивания для реферала
+          referrer = String(data.referrer).replace(/_/g, '\\_');
         }
       }
 
-      // СООБЩЕНИЕ АДМИНУ
-      const adminText = `🔥 *НОВЫЙ ЗАКАЗ*\nБайк: ${bike_model || 'не указан'}\nДаты: ${start_date || '?'} - ${end_date || '?'}\nКлиент: @${client_username || 'unknown'}\nРеф: ${referrer}`;
+      // Экранируем данные клиента для безопасности Markdown
+      const safeBike = String(bike_model).replace(/_/g, '\\_');
+      const safeUser = String(client_username).replace(/_/g, '\\_');
+
+      const adminText = `🔥 *НОВЫЙ ЗАКАЗ*\nБайк: *${safeBike}*\nДаты: ${start_date} - ${end_date}\nКлиент: @${safeUser}\nРеф: ${referrer}`;
       
       await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
         method: 'POST',
@@ -65,9 +91,8 @@ export async function POST(req: Request) {
         }),
       });
 
-      // СООБЩЕНИЕ КЛИЕНТУ
       if (telegram_id) {
-        const clientText = `🇷🇺 *Заявка принята!*\nМы уточняем наличие *${bike_model}*. Скоро свяжемся!\nМенеджер: @dragonbikesupport\n\n---\n🇺🇸 *Request received!*\nChecking availability for *${bike_model}*. Wait for update!\nManager: @dragonbikesupport`;
+        const clientText = `🇷🇺 *Заявка принята!*\nМы уточняем наличие *${safeBike}*. Скоро свяжемся!\nМенеджер: @dragonbikesupport`;
 
         await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
           method: 'POST',
@@ -79,14 +104,13 @@ export async function POST(req: Request) {
           }),
         });
       }
-
       return NextResponse.json({ ok: true });
     }
 
     return NextResponse.json({ ok: true });
 
-  } catch (error) {
-    console.error('Route handler error:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+  } catch (error: any) {
+    console.error('Route error:', error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
