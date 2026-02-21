@@ -3,45 +3,33 @@ import { NextResponse } from 'next/server';
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    
-    // ВАЖНО: Достаем данные из структуры Telegram
     const chatId = body.message?.chat?.id;
     const text = body.message?.text;
-    const userLang = body.message?.from?.language_code;
+
+    console.log("Получен chatId:", chatId, "Текст:", text);
 
     if (text === '/start' && chatId) {
-      const botToken = process.env.TELEGRAM_BOT_TOKEN;
-      // Твой проверенный ID фото
-      const photoId = "AgACAgIAAxkBAAIRiGmZiSTaUiKBUaabhXY8HVMDnC06AAJOFWsbOWfISP8aGxItMFEOAQADAgADcwADOgQ";
+      // Прямо сюда вставим токен для теста, если через env не идет
+      const token = "8509212353:AAGV2SrquugQXKK5T8rQ3kAWdZAj7veb2OQ";
+      const photo = "AgACAgIAAxkBAAIRiGmZiSTaUiKBUaabhXY8HVMDnC06AAJOFWsbOWfISP8aGxItMFEOAQADAgADcwADOgQ";
 
-      const messages = {
-        ru: "👋 **Привет! Это DragonBike.**\n\nЧтобы выбрать байк, нажми на кнопку **'Открыть приложение'** в левом нижнем углу! 👇",
-        en: "👋 **Hi! This is DragonBike.**\n\nTo pick a bike, click the **'Open App'** button in the bottom left corner! 👇"
-      };
-
-      const caption = userLang === 'ru' ? messages.ru : messages.en;
-
-      // Отправляем фото
-      const res = await fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, {
+      const res = await fetch(`https://api.telegram.org/bot${token}/sendPhoto`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           chat_id: chatId,
-          photo: photoId,
-          caption: caption,
-          parse_mode: "Markdown"
+          photo: photo,
+          caption: "✅ Бот работает! Нажми на кнопку приложения внизу.",
         }),
       });
-
-      const result = await res.json();
-      if (!result.ok) {
-        console.error('Telegram API error:', result);
-      }
+      
+      const data = await res.json();
+      console.log("Ответ от Telegram:", data);
     }
 
     return NextResponse.json({ ok: true });
   } catch (error) {
-    console.error('Webhook error:', error);
+    console.error("Ошибка в вебхуке:", error);
     return NextResponse.json({ ok: false });
   }
 }
