@@ -2,17 +2,21 @@
 import { useState, useEffect } from 'react';
 import { supabase } from "../supabase";
 
+// Настройка комиссии (поменяй, если нужно другое число)
+const COMMISSION_PER_ORDER = 50000;
+
 export default function AdminPage() {
     const [scooters, setScooters] = useState<any[]>([]);
     const [bookings, setBookings] = useState<any[]>([]);
+    const [partners, setPartners] = useState<any[]>([]); // Состояние для партнеров
     const [loading, setLoading] = useState(true);
-    const [activeTab, setActiveTab] = useState<'bikes' | 'bookings'>('bookings');
+    const [activeTab, setActiveTab] = useState<'bikes' | 'bookings' | 'partners'>('bookings');
     
     // БЕЗОПАСНОСТЬ
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [adminPassword, setAdminPassword] = useState('');
 
-    // Поля для нового байка (все твои поля из кода)
+    // Поля для нового байка
     const [model, setModel] = useState('');
     const [priceDay, setPriceDay] = useState('');
     const [priceMonth, setPriceMonth] = useState('');
@@ -30,12 +34,29 @@ export default function AdminPage() {
 
     async function fetchData() {
         setLoading(true);
-        if (activeTab === 'bikes') {
-            const { data } = await supabase.from('scooters').select('*').order('id', { ascending: false });
-            if (data) setScooters(data);
-        } else {
-            const { data } = await supabase.from('bookings').select('*').order('created_at', { ascending: false });
-            if (data) setBookings(data);
+        try {
+            if (activeTab === 'bikes') {
+                const { data } = await supabase.from('scooters').select('*').order('id', { ascending: false });
+                if (data) setScooters(data);
+            } else if (activeTab === 'bookings') {
+                const { data } = await supabase.from('bookings').select('*').order('created_at', { ascending: false });
+                if (data) setBookings(data);
+            } else if (activeTab === 'partners') {
+                // Загружаем всех партнеров
+                const { data: pData } = await supabase.from('partners').select('*').neq('name', 'admin');
+                // Загружаем все выполненные брони для расчета баланса
+                const { data: bData } = await supabase.from('bookings').select('referrer').eq('status', 'completed');
+                
+                if (pData) {
+                    const partnersWithStats = pData.map(p => {
+                        const count = bData?.filter(b => b.referrer === p.name).length || 0;
+                        return { ...p, paidCount: count, balance: count * COMMISSION_PER_ORDER };
+                    });
+                    setPartners(partnersWithStats);
+                }
+            }
+        } catch (error) {
+            console.error("Ошибка загрузки:", error);
         }
         setLoading(false);
     }
@@ -134,17 +155,23 @@ export default function AdminPage() {
                         <h1 className="text-4xl font-bold italic uppercase">Админ-панель</h1>
                     </div>
                     
-                    {/* Твои вкладки */}
-                    <div className="flex bg-[#11141b] p-1 rounded-2xl border border-white/5">
+                    {/* Твои вкладки (Добавлена кнопка Партнеры) */}
+                    <div className="flex bg-[#11141b] p-1 rounded-2xl border border-white/5 overflow-x-auto">
                         <button 
                             onClick={() => setActiveTab('bookings')}
-                            className={`px-6 py-3 rounded-xl text-[10px] font-bold uppercase transition-all ${activeTab === 'bookings' ? 'bg-green-600 text-white' : 'text-gray-400 hover:text-white'}`}
+                            className={`px-4 md:px-6 py-3 rounded-xl text-[10px] font-bold uppercase transition-all whitespace-nowrap ${activeTab === 'bookings' ? 'bg-green-600 text-white' : 'text-gray-400 hover:text-white'}`}
                         >
                             Заявки
                         </button>
                         <button 
+                            onClick={() => setActiveTab('partners')}
+                            className={`px-4 md:px-6 py-3 rounded-xl text-[10px] font-bold uppercase transition-all whitespace-nowrap ${activeTab === 'partners' ? 'bg-green-600 text-white' : 'text-gray-400 hover:text-white'}`}
+                        >
+                            Партнеры
+                        </button>
+                        <button 
                             onClick={() => setActiveTab('bikes')}
-                            className={`px-6 py-3 rounded-xl text-[10px] font-bold uppercase transition-all ${activeTab === 'bikes' ? 'bg-green-600 text-white' : 'text-gray-400 hover:text-white'}`}
+                            className={`px-4 md:px-6 py-3 rounded-xl text-[10px] font-bold uppercase transition-all whitespace-nowrap ${activeTab === 'bikes' ? 'bg-green-600 text-white' : 'text-gray-400 hover:text-white'}`}
                         >
                             Байки
                         </button>
@@ -181,7 +208,29 @@ export default function AdminPage() {
                     </div>
                 )}
 
-                {/* TAB: БАЙКИ (ТВОЯ СТАРАЯ ФОРМА) */}
+                {/* TAB: ПАРТНЕРЫ (НОВАЯ ВКЛАДКА) */}
+                {activeTab === 'partners' && (
+                    <div className="grid gap-4">
+                         <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-sm font-bold uppercase tracking-widest text-gray-500 italic">Список партнеров и балансы</h3>
+                            <button onClick={fetchData} className="text-[10px] uppercase font-bold text-green-500">Обновить 🔄</button>
+                        </div>
+                        {loading ? <p>Загрузка...</p> : partners.length === 0 ? <p className="text-gray-500 italic">Партнеров пока нет</p> : partners.map(p => (
+                            <div key={p.id} className="bg-[#11141b] p-6 rounded-[2rem] border border-white/5 flex justify-between items-center">
+                                <div>
+                                    <p className="text-green-500 font-black uppercase text-lg italic tracking-widest">{p.name}</p>
+                                    <p className="text-gray-500 text-[10px] uppercase mt-1">Пароль: {p.password}</p>
+                                </div>
+                                <div className="text-right">
+                                    <div className="text-2xl font-bold italic">{p.balance.toLocaleString()} VND</div>
+                                    <div className="text-[9px] text-gray-500 uppercase font-black tracking-tighter">Выполнено заказов: {p.paidCount}</div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+
+                {/* TAB: БАЙКИ */}
                 {activeTab === 'bikes' && (
                     <>
                         <form onSubmit={addScooter} className="bg-[#11141b] p-8 rounded-[2.5rem] mb-16 border border-white/5 shadow-xl grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -195,7 +244,6 @@ export default function AdminPage() {
                             <input className="bg-black/40 p-4 rounded-2xl outline-none border border-white/5 focus:border-green-500 text-white" placeholder="Объем cc" value={engine} onChange={e => setEngine(e.target.value)} />
                             <input className="bg-black/40 p-4 rounded-2xl outline-none border border-white/5 focus:border-green-500 text-white" placeholder="Год" value={year} onChange={e => setYear(e.target.value)} />
                             <input className="md:col-span-2 bg-black/40 p-4 rounded-2xl outline-none border border-white/5 focus:border-green-500 text-white" placeholder="Главное фото (URL)" value={image} onChange={e => setImage(e.target.value)} required />
-                            {/* ПОЛЕ ГАЛЕРЕИ ВЕРНУЛОСЬ */}
                             <textarea className="md:col-span-2 bg-black/40 p-4 rounded-2xl outline-none border border-white/5 focus:border-green-500 text-white h-24 resize-none" placeholder="Галерея (ссылки через запятую)" value={imagesGallery} onChange={e => setImagesGallery(e.target.value)} />
                             
                             <button type="submit" className="md:col-span-2 bg-green-600 hover:bg-green-500 p-5 rounded-2xl font-black uppercase text-[11px] tracking-widest transition-all text-white">
