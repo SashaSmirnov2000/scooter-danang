@@ -47,7 +47,8 @@ export async function POST(req: Request) {
         "We provide high-quality service without any hassle. Choose and book in one click!\n\n" +
         "🆘 For any questions, please contact our manager: @dragonbikesupport";
 
-      const token = "8509212353:AAGV2SrquugQXKK5T8rQ3kAWdZAj7veb2OQ";
+      const token = process.env.TELEGRAM_BOT_TOKEN; 
+// (Убедись, что имя после process.env совпадает с тем, как ты назвал его в Vercel)
 
       await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
         method: 'POST',
