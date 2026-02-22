@@ -14,30 +14,32 @@ export async function POST(req: Request) {
 
     if (!botToken) return NextResponse.json({ error: "No Token" }, { status: 500 });
 
-    // 1. ЛОГИКА ПРИВЕТСТВИЯ (/start)
+    // 1. ЛОГИКА ОБРАБОТКИ СООБЩЕНИЙ (Webhook от Telegram)
     if (body.message) {
       const chatId = body.message.chat.id;
       const username = body.message.from?.username || 'unknown';
       const text = body.message.text || '';
 
-      if (text.startsWith('/start')) {
-        const startParam = text.split(' ')[1];
+      // Проверяем наличие пользователя в базе при любом сообщении
+      const { data: existingUser } = await supabase
+        .from('users')
+        .select('id')
+        .eq('telegram_id', chatId)
+        .maybeSingle();
+
+      if (!existingUser) {
+        // Если это /start с параметром, вытягиваем реферала, иначе 'direct'
+        const startParam = text.startsWith('/start') ? text.split(' ')[1] : null;
         
-        const { data: existingUser } = await supabase
-          .from('users')
-          .select('id')
-          .eq('telegram_id', chatId)
-          .maybeSingle();
+        await supabase.from('users').insert([{
+          telegram_id: chatId,
+          username: username,
+          referrer: startParam || 'direct'
+        }]);
+      }
 
-        if (!existingUser) {
-          await supabase.from('users').insert([{
-            telegram_id: chatId,
-            username: username,
-            referrer: startParam || 'direct'
-          }]);
-        }
-
-        const welcomeMessage = 
+      // Отправляем приветственное сообщение на ЛЮБОЕ входящее сообщение
+      const welcomeMessage = 
 `✨ **Добро пожаловать в каталог байков Дананга!**
 
 Наш сервис помогает вам полностью сфокусироваться на путешествии и арендовать транспорт за несколько кликов без лишних заморочек. 🛵
@@ -49,32 +51,31 @@ Our service helps you focus entirely on your journey and rent a vehicle in a few
 
 🤝 **Менеджер / Support:** @dragonbikesupport`;
 
-        await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            chat_id: chatId,
-            text: welcomeMessage,
-            parse_mode: "Markdown",
-            reply_markup: {
-              inline_keyboard: [[{ 
-                text: "🛵 Открыть каталог / Open Catalog", 
-                web_app: { url: "https://scooter-danang.vercel.app" } 
-              }]]
-            }
-          }),
-        });
-        return NextResponse.json({ ok: true });
-      }
+      await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text: welcomeMessage,
+          parse_mode: "Markdown",
+          reply_markup: {
+            inline_keyboard: [[{ 
+              text: "🛵 Открыть каталог / Open Catalog", 
+              web_app: { url: "https://scooter-danang.vercel.app" } 
+            }]]
+          }
+        }),
+      });
+      
+      return NextResponse.json({ ok: true });
     }
 
-    // 2. ЛОГИКА ДЛЯ ЗАКАЗА
+    // 2. ЛОГИКА ДЛЯ ЗАКАЗА (Из Mini App)
     const { bike_model, start_date, end_date, client_username, telegram_id, bike_id } = body;
 
     if (bike_model) {
       let referrer = 'direct';
 
-      // Достаем реферера, чтобы сохранить его в заказ
       if (telegram_id) {
         const { data: userData } = await supabase
           .from('users')
@@ -87,7 +88,7 @@ Our service helps you focus entirely on your journey and rent a vehicle in a few
         }
       }
 
-      // СОХРАНЯЕМ ЗАКАЗ В БАЗУ (статус подставится автоматически как 'pending')
+      // Сохраняем бронирование
       await supabase.from('bookings').insert([{
         bike_id: bike_id,
         bike_model: bike_model,
@@ -102,7 +103,7 @@ Our service helps you focus entirely on your journey and rent a vehicle in a few
       const safeUser = String(client_username).replace(/_/g, '\\_');
       const safeRef = String(referrer).replace(/_/g, '\\_');
 
-      // Текст для админа
+      // Уведомление админу
       const adminText = `🔔 **НОВЫЙ ЗАКАЗ**\n\n**Байк:** ${safeBike}\n**Даты:** ${start_date} — ${end_date}\n**Клиент:** @${safeUser}\n**Реф:** ${safeRef}`;
       
       await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
@@ -115,7 +116,7 @@ Our service helps you focus entirely on your journey and rent a vehicle in a few
         }),
       });
 
-      // Текст для клиента
+      // Уведомление клиенту
       if (telegram_id) {
         const bookingMessage = 
 `✅ **Заявка принята! / Order received!**
@@ -127,7 +128,7 @@ Our service helps you focus entirely on your journey and rent a vehicle in a few
 ---
 We are checking the availability of **${safeBike}**. You can relax and go about your business, we will send you a notification. If this bike is unavailable, we will find similar options for you.
 
-🕒 **Время обработки / Working hours:** 10:00 — 22:00 (Local time)
+🕒 **Время обработки:** 10:00 — 22:00 (Local time)
 
 🤝 **Менеджер / Support:** @dragonbikesupport`;
 
