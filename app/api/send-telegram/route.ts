@@ -14,17 +14,15 @@ export async function POST(req: Request) {
 
     if (!botToken) return NextResponse.json({ error: "No Token" }, { status: 500 });
 
-    // 1. ЛОГИКА ДЛЯ WEBHOOK (Когда юзер пишет боту)
+    // 1. ЛОГИКА ДЛЯ WEBHOOK (Приветствие)
     if (body.message) {
       const chatId = body.message.chat.id;
       const username = body.message.from?.username || 'unknown';
       const text = body.message.text || '';
 
-      // ПРОВЕРЯЕМ/СОЗДАЕМ ЮЗЕРА, ЧТОБЫ ОН ПОПАЛ В ТАБЛИЦУ
       if (text.startsWith('/start')) {
-        const startParam = text.split(' ')[1]; // Если зашел по ссылке ?start=alex
+        const startParam = text.split(' ')[1];
         
-        // Проверяем, есть ли уже такой юзер
         const { data: existingUser } = await supabase
           .from('users')
           .select('id')
@@ -32,28 +30,36 @@ export async function POST(req: Request) {
           .maybeSingle();
 
         if (!existingUser) {
-          // Если юзера нет — создаем его!
           await supabase.from('users').insert([{
             telegram_id: chatId,
             username: username,
             referrer: startParam || 'direct'
           }]);
         }
-      }
 
-      await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          chat_id: chatId,
-          text: "🇷🇺 **Добро пожаловать в каталог байков Дананга!**\n\n🆘 Менеджер: @dragonbikesupport",
-          parse_mode: "Markdown",
-          reply_markup: {
-            inline_keyboard: [[{ text: "🛵 Открыть каталог", web_app: { url: "https://scooter-danang.vercel.app" } }]]
-          }
-        }),
-      });
-      return NextResponse.json({ ok: true });
+        const welcomeMessage = 
+`**Добро пожаловать в каталог байков Дананга!**
+Наш сервис помогает вам полностью сфокусироваться на путешествии и арендовать транспорт за несколько кликов без заморочек.
+
+**Welcome to the Da Nang Bike Catalog!**
+Our service helps you focus entirely on your journey and rent a vehicle in a few clicks without any hassle.
+
+Менеджер / Support: @dragonbikesupport`;
+
+        await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chat_id: chatId,
+            text: welcomeMessage,
+            parse_mode: "Markdown",
+            reply_markup: {
+              inline_keyboard: [[{ text: "Open Catalog", web_app: { url: "https://scooter-danang.vercel.app" } }]]
+            }
+          }),
+        });
+        return NextResponse.json({ ok: true });
+      }
     }
 
     // 2. ЛОГИКА ДЛЯ ЗАКАЗА (Из Mini App)
@@ -67,19 +73,18 @@ export async function POST(req: Request) {
           .from('users')
           .select('referrer')
           .eq('telegram_id', Number(telegram_id))
-          .maybeSingle(); // Безопасный метод
+          .maybeSingle();
 
         if (!error && data?.referrer) {
-          // Экранируем подчеркивания для реферала
           referrer = String(data.referrer).replace(/_/g, '\\_');
         }
       }
 
-      // Экранируем данные клиента для безопасности Markdown
       const safeBike = String(bike_model).replace(/_/g, '\\_');
       const safeUser = String(client_username).replace(/_/g, '\\_');
 
-      const adminText = `🔥 *НОВЫЙ ЗАКАЗ*\nБайк: *${safeBike}*\nДаты: ${start_date} - ${end_date}\nКлиент: @${safeUser}\nРеф: ${referrer}`;
+      // Текст для админа
+      const adminText = `НОВЫЙ ЗАКАЗ\nБайк: ${safeBike}\nДаты: ${start_date} - ${end_date}\nКлиент: @${safeUser}\nРеф: ${referrer}`;
       
       await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
         method: 'POST',
@@ -91,15 +96,24 @@ export async function POST(req: Request) {
         }),
       });
 
+      // Текст для клиента
       if (telegram_id) {
-        const clientText = `🇷🇺 *Заявка принята!*\nМы уточняем наличие *${safeBike}*. Скоро свяжемся!\nМенеджер: @dragonbikesupport`;
+        const bookingMessage = 
+`**Заявка принята! / Order received!**
+
+Мы уже уточняем наличие **${safeBike}**. Вы можете расслабиться и заниматься своими делами, мы пришлем уведомление. Если этот байк будет занят, мы сами подберем для вас похожие варианты.
+
+We are checking the availability of **${safeBike}**. You can relax and go about your business, we will send you a notification. If this bike is unavailable, we will select and send you similar options.
+
+**Рабочее время / Working hours:** 10:00 - 22:00 (GMT+7)
+Менеджер / Support: @dragonbikesupport`;
 
         await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
             chat_id: Number(telegram_id), 
-            text: clientText, 
+            text: bookingMessage, 
             parse_mode: 'Markdown' 
           }),
         });
