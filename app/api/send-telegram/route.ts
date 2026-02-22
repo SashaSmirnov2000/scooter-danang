@@ -14,7 +14,7 @@ export async function POST(req: Request) {
 
     if (!botToken) return NextResponse.json({ error: "No Token" }, { status: 500 });
 
-    // 1. ЛОГИКА ДЛЯ WEBHOOK (Приветствие)
+    // 1. ЛОГИКА ПРИВЕТСТВИЯ (/start)
     if (body.message) {
       const chatId = body.message.chat.id;
       const username = body.message.from?.username || 'unknown';
@@ -38,13 +38,16 @@ export async function POST(req: Request) {
         }
 
         const welcomeMessage = 
-`**Добро пожаловать в каталог байков Дананга!**
-Наш сервис помогает вам полностью сфокусироваться на путешествии и арендовать транспорт за несколько кликов без заморочек.
+`✨ **Добро пожаловать в каталог байков Дананга!**
 
-**Welcome to the Da Nang Bike Catalog!**
+Наш сервис помогает вам полностью сфокусироваться на путешествии и арендовать транспорт за несколько кликов без лишних заморочек. 🛵
+
+---
+✨ **Welcome to the Da Nang Bike Catalog!**
+
 Our service helps you focus entirely on your journey and rent a vehicle in a few clicks without any hassle.
 
-Менеджер / Support: @dragonbikesupport`;
+🤝 **Менеджер / Support:** @dragonbikesupport`;
 
         await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
           method: 'POST',
@@ -54,7 +57,10 @@ Our service helps you focus entirely on your journey and rent a vehicle in a few
             text: welcomeMessage,
             parse_mode: "Markdown",
             reply_markup: {
-              inline_keyboard: [[{ text: "Open Catalog", web_app: { url: "https://scooter-danang.vercel.app" } }]]
+              inline_keyboard: [[{ 
+                text: "🛵 Открыть каталог / Open Catalog", 
+                web_app: { url: "https://scooter-danang.vercel.app" } 
+              }]]
             }
           }),
         });
@@ -62,29 +68,42 @@ Our service helps you focus entirely on your journey and rent a vehicle in a few
       }
     }
 
-    // 2. ЛОГИКА ДЛЯ ЗАКАЗА (Из Mini App)
-    const { bike_model, start_date, end_date, client_username, telegram_id } = body;
+    // 2. ЛОГИКА ДЛЯ ЗАКАЗА
+    const { bike_model, start_date, end_date, client_username, telegram_id, bike_id } = body;
 
     if (bike_model) {
-      let referrer = 'нет';
+      let referrer = 'direct';
 
+      // Достаем реферера, чтобы сохранить его в заказ
       if (telegram_id) {
-        const { data, error } = await supabase
+        const { data: userData } = await supabase
           .from('users')
           .select('referrer')
           .eq('telegram_id', Number(telegram_id))
           .maybeSingle();
 
-        if (!error && data?.referrer) {
-          referrer = String(data.referrer).replace(/_/g, '\\_');
+        if (userData?.referrer) {
+          referrer = userData.referrer;
         }
       }
 
+      // СОХРАНЯЕМ ЗАКАЗ В БАЗУ (статус подставится автоматически как 'pending')
+      await supabase.from('bookings').insert([{
+        bike_id: bike_id,
+        bike_model: bike_model,
+        start_date: start_date,
+        end_date: end_date,
+        client_username: client_username,
+        telegram_id: telegram_id,
+        referrer: referrer
+      }]);
+
       const safeBike = String(bike_model).replace(/_/g, '\\_');
       const safeUser = String(client_username).replace(/_/g, '\\_');
+      const safeRef = String(referrer).replace(/_/g, '\\_');
 
       // Текст для админа
-      const adminText = `НОВЫЙ ЗАКАЗ\nБайк: ${safeBike}\nДаты: ${start_date} - ${end_date}\nКлиент: @${safeUser}\nРеф: ${referrer}`;
+      const adminText = `🔔 **НОВЫЙ ЗАКАЗ**\n\n**Байк:** ${safeBike}\n**Даты:** ${start_date} — ${end_date}\n**Клиент:** @${safeUser}\n**Реф:** ${safeRef}`;
       
       await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
         method: 'POST',
@@ -99,14 +118,18 @@ Our service helps you focus entirely on your journey and rent a vehicle in a few
       // Текст для клиента
       if (telegram_id) {
         const bookingMessage = 
-`**Заявка принята! / Order received!**
+`✅ **Заявка принята! / Order received!**
 
-Мы уже уточняем наличие **${safeBike}**. Вы можете расслабиться и заниматься своими делами, мы пришлем уведомление. Если этот байк будет занят, мы сами подберем для вас похожие варианты.
+Мы уже уточняем наличие **${safeBike}**. Вы можете расслабиться и заниматься своими делами, мы сами пришлем вам уведомление. 
 
-We are checking the availability of **${safeBike}**. You can relax and go about your business, we will send you a notification. If this bike is unavailable, we will select and send you similar options.
+Если этот байк будет занят, мы подберем для вас похожие варианты и пришлем их сюда. 📩
 
-**Рабочее время / Working hours:** 10:00 - 22:00 (GMT+7)
-Менеджер / Support: @dragonbikesupport`;
+---
+We are checking the availability of **${safeBike}**. You can relax and go about your business, we will send you a notification. If this bike is unavailable, we will find similar options for you.
+
+🕒 **Время обработки / Working hours:** 10:00 — 22:00 (Local time)
+
+🤝 **Менеджер / Support:** @dragonbikesupport`;
 
         await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
           method: 'POST',
