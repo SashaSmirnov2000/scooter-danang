@@ -23,7 +23,7 @@ export async function POST(req: Request) {
       const messageId = body.callback_query.message.message_id;
       const oldText = body.callback_query.message.text || "";
 
-      // Всегда отвечаем Telegram, чтобы кнопка не "крутилась"
+      // Вспомогательная функция для ответа на callback (чтобы кнопка не "крутилась")
       const answerCallback = async () => {
         await fetch(`https://api.telegram.org/bot${botToken}/answerCallbackQuery`, {
           method: 'POST',
@@ -146,7 +146,7 @@ export async function POST(req: Request) {
       const chatId = body.message.chat.id;
       const text = body.message.text || '';
 
-      // ОТПРАВКА СООБЩЕНИЯ КЛИЕНТУ ОТ АДМИНА
+      // ОТПРАВКА СООБЩЕНИЯ КЛИЕНТУ ОТ АДМИНА (Reply)
       if (chatId === MY_ADMIN_ID && body.message.reply_to_message) {
         const replySourceText = body.message.reply_to_message.text || "";
         const idMatch = replySourceText.match(/(?:№|заказа\s+)(\d+)/i);
@@ -178,7 +178,7 @@ export async function POST(req: Request) {
         }
       }
 
-      // АДМИН ПАНЕЛЬ
+      // АДМИН ПАНЕЛЬ (/admin)
       if (text === '/admin' && chatId === MY_ADMIN_ID) {
         const { data: orders } = await supabase.from('bookings').select('*').order('created_at', { ascending: false }).limit(5);
         for (const o of orders || []) {
@@ -196,9 +196,10 @@ export async function POST(req: Request) {
         return NextResponse.json({ ok: true });
       }
 
-      // ПРИВЕТСТВИЕ И СОЗДАНИЕ ЮЗЕРА
+      // ПРИВЕТСТВИЕ НА ЛЮБОЙ ТЕКСТ / СИМВОЛ
       const username = body.message.from?.username || 'unknown';
       const { data: existingUser } = await supabase.from('users').select('id').eq('telegram_id', chatId).maybeSingle();
+      
       if (!existingUser) {
         const startParam = text.startsWith('/start') ? text.split(' ')[1] : null;
         await supabase.from('users').insert([{ telegram_id: chatId, username: username, referrer: startParam || 'direct' }]);
@@ -226,7 +227,6 @@ export async function POST(req: Request) {
         bike_id, bike_model, start_date, end_date, client_username, telegram_id, status: 'pending'
       }]).select().single();
 
-      // Уведомление админу
       await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -236,7 +236,6 @@ export async function POST(req: Request) {
         }),
       });
 
-      // Уведомление клиенту
       const bookingMessage = `✅ **Заявка принята! / Order received!**\n\nМы уже уточняем наличие **${bike_model}**. Вы можете расслабиться и заниматься своими делами, мы сами пришлем вам уведомление.\n\n---\n🕒 **Время обработки:** 10:00 — 22:00 (Local time)\n\n🤝 **Менеджер / Support:** @dragonbikesupport`;
       await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -257,6 +256,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true });
   } catch (error: any) {
     console.error('Bot Error:', error);
-    return NextResponse.json({ ok: true }); // Возвращаем OK, чтобы Telegram не спамил повторами при ошибках
+    // Всегда возвращаем ok: true, чтобы Telegram перестал слать ошибочный запрос
+    return NextResponse.json({ ok: true }); 
   }
 }
