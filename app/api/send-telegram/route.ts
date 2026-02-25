@@ -148,7 +148,7 @@ export async function POST(req: Request) {
       const chatId = body.message.chat.id;
       const text = body.message.text || '';
 
-      // ОТПРАВКА СООБЩЕНИЯ КЛИЕНТУ ОТ АДМИНА
+      // 1.1 Если админ отвечает на сообщение (логика переписки)
       if (chatId === MY_ADMIN_ID && body.message.reply_to_message) {
         const replySourceText = body.message.reply_to_message.text || "";
         const idMatch = replySourceText.match(/(?:№|заказа\s+)(\d+)/i);
@@ -158,7 +158,7 @@ export async function POST(req: Request) {
           const { data: order } = await supabase.from('bookings').select('telegram_id').eq('id', orderId).single();
           
           if (order?.telegram_id) {
-            const sendRes = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, { 
+            await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, { 
               method: 'POST', 
               headers: { 'Content-Type': 'application/json' }, 
               body: JSON.stringify({
@@ -168,19 +168,17 @@ export async function POST(req: Request) {
               })
             });
 
-            if (sendRes.ok) {
-              await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, { 
-                method: 'POST', 
-                headers: { 'Content-Type': 'application/json' }, 
-                body: JSON.stringify({ chat_id: MY_ADMIN_ID, text: `✅ Доставлено клиенту (заказ №${orderId})` })
-              });
-              return NextResponse.json({ ok: true });
-            }
+            await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, { 
+              method: 'POST', 
+              headers: { 'Content-Type': 'application/json' }, 
+              body: JSON.stringify({ chat_id: MY_ADMIN_ID, text: `✅ Доставлено клиенту (заказ №${orderId})` })
+            });
+            return NextResponse.json({ ok: true });
           }
         }
       }
 
-      // АДМИН ПАНЕЛЬ
+      // 1.2 Админ-панель
       if (text === '/admin' && chatId === MY_ADMIN_ID) {
         const { data: orders } = await supabase.from('bookings').select('*').order('created_at', { ascending: false }).limit(5);
         for (const o of orders || []) {
@@ -198,15 +196,8 @@ export async function POST(req: Request) {
         return NextResponse.json({ ok: true });
       }
 
-      // ПРИВЕТСТВИЕ НА ЛЮБОЙ ТЕКСТ / СИМВОЛ (если это не админ-команды выше)
-      const username = body.message.from?.username || 'unknown';
-      const { data: existingUser } = await supabase.from('users').select('id').eq('telegram_id', chatId).maybeSingle();
-      
-      if (!existingUser) {
-        const startParam = text.startsWith('/start') ? text.split(' ')[1] : null;
-        await supabase.from('users').insert([{ telegram_id: chatId, username: username, referrer: startParam || 'direct' }]);
-      }
-
+      // 1.3 ВСЕ ОСТАЛЬНЫЕ СООБЩЕНИЯ (Приветствие)
+      // Если это не админ или админ пишет просто текст без реплая
       const welcomeMessage = `✨ **Добро пожаловать в каталог байков Дананга!**\n\nНаш сервис помогает вам полностью сфокусироваться на путешествии и арендовать транспорт за несколько кликов без лишних заморочек. 🛵\n\n---\n✨ **Welcome to the Da Nang Bike Catalog!**\n\n🤝 **Менеджер / Support:** @dragonbikesupport`;
       
       await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, { 
@@ -222,7 +213,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true });
     }
 
-    // --- 2. ЛОГИКА НОВОГО ЗАКАЗА ---
+    // --- 2. ЛОГИКА НОВОГО ЗАКАЗА (Webhook из Mini App) ---
     const { bike_model, start_date, end_date, client_username, telegram_id, bike_id } = body;
     if (bike_model && telegram_id) {
       const { data: newOrder } = await supabase.from('bookings').insert([{
