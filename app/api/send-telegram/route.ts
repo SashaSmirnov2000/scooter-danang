@@ -23,7 +23,6 @@ export async function POST(req: Request) {
       const messageId = body.callback_query.message.message_id;
       const oldText = body.callback_query.message.text || "";
 
-      // Вспомогательная функция для ответа на callback (чтобы кнопка не "крутилась")
       const answerCallback = async () => {
         await fetch(`https://api.telegram.org/bot${botToken}/answerCallbackQuery`, {
           method: 'POST',
@@ -108,7 +107,10 @@ export async function POST(req: Request) {
             body: JSON.stringify({
               chat_id: Number(order.telegram_id),
               text: `😔 **Ваше бронирование не подтверждено.**\n\nК сожалению, этот байк уже занят. Мы подберем для вас похожие варианты и скоро пришлем!`,
-              parse_mode: "Markdown"
+              parse_mode: "Markdown",
+              reply_markup: {
+                inline_keyboard: [[{ text: "🤝 Написать менеджеру", url: "https://t.me/dragonbikesupport" }]]
+              }
             })
           });
           await fetch(`https://api.telegram.org/bot${botToken}/editMessageText`, { 
@@ -146,7 +148,7 @@ export async function POST(req: Request) {
       const chatId = body.message.chat.id;
       const text = body.message.text || '';
 
-      // ОТПРАВКА СООБЩЕНИЯ КЛИЕНТУ ОТ АДМИНА (Reply)
+      // ОТПРАВКА СООБЩЕНИЯ КЛИЕНТУ ОТ АДМИНА
       if (chatId === MY_ADMIN_ID && body.message.reply_to_message) {
         const replySourceText = body.message.reply_to_message.text || "";
         const idMatch = replySourceText.match(/(?:№|заказа\s+)(\d+)/i);
@@ -178,7 +180,7 @@ export async function POST(req: Request) {
         }
       }
 
-      // АДМИН ПАНЕЛЬ (/admin)
+      // АДМИН ПАНЕЛЬ
       if (text === '/admin' && chatId === MY_ADMIN_ID) {
         const { data: orders } = await supabase.from('bookings').select('*').order('created_at', { ascending: false }).limit(5);
         for (const o of orders || []) {
@@ -196,7 +198,7 @@ export async function POST(req: Request) {
         return NextResponse.json({ ok: true });
       }
 
-      // ПРИВЕТСТВИЕ НА ЛЮБОЙ ТЕКСТ / СИМВОЛ
+      // ПРИВЕТСТВИЕ НА ЛЮБОЙ ТЕКСТ / СИМВОЛ (если это не админ-команды выше)
       const username = body.message.from?.username || 'unknown';
       const { data: existingUser } = await supabase.from('users').select('id').eq('telegram_id', chatId).maybeSingle();
       
@@ -220,7 +222,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true });
     }
 
-    // --- 2. ЛОГИКА НОВОГО ЗАКАЗА (Webhook из Mini App) ---
+    // --- 2. ЛОГИКА НОВОГО ЗАКАЗА ---
     const { bike_model, start_date, end_date, client_username, telegram_id, bike_id } = body;
     if (bike_model && telegram_id) {
       const { data: newOrder } = await supabase.from('bookings').insert([{
@@ -255,8 +257,6 @@ export async function POST(req: Request) {
     
     return NextResponse.json({ ok: true });
   } catch (error: any) {
-    console.error('Bot Error:', error);
-    // Всегда возвращаем ok: true, чтобы Telegram перестал слать ошибочный запрос
     return NextResponse.json({ ok: true }); 
   }
 }
