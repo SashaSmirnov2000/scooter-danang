@@ -21,6 +21,7 @@ export default function AdminPage() {
     // Поля формы
     const [model, setModel] = useState('');
     const [priceDay, setPriceDay] = useState('');
+    const [price2Days, setPrice2Days] = useState(''); // НОВОЕ
     const [priceMonth, setPriceMonth] = useState('');
     const [image, setImage] = useState('');
     const [imagesGallery, setImagesGallery] = useState(''); 
@@ -29,6 +30,7 @@ export default function AdminPage() {
     const [descriptionRu, setDescriptionRu] = useState('');
     const [descriptionEn, setDescriptionEn] = useState('');
     const [vendorPhone, setVendorPhone] = useState('84'); 
+    const [mapUrl, setMapUrl] = useState(''); // НОВОЕ
 
     useEffect(() => {
         if (isAuthenticated) {
@@ -78,6 +80,7 @@ export default function AdminPage() {
         setEditingId(scooter.id);
         setModel(scooter.model);
         setPriceDay(scooter.price_day);
+        setPrice2Days(scooter.price_2days || ''); // НОВОЕ
         setPriceMonth(scooter.price_month);
         setImage(scooter.image);
         setImagesGallery(scooter.images_gallery || '');
@@ -86,6 +89,7 @@ export default function AdminPage() {
         setDescriptionRu(scooter.description_ru || '');
         setDescriptionEn(scooter.description_en || '');
         setVendorPhone(scooter.vendor_phone || '84');
+        setMapUrl(scooter.map_url || ''); // НОВОЕ
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
@@ -95,9 +99,9 @@ export default function AdminPage() {
     };
 
     const resetForm = () => {
-        setModel(''); setPriceDay(''); setPriceMonth(''); setImage('');
+        setModel(''); setPriceDay(''); setPrice2Days(''); setPriceMonth(''); setImage('');
         setImagesGallery(''); setEngine(''); setTransmission('Автомат');
-        setDescriptionRu(''); setDescriptionEn(''); setVendorPhone('84');
+        setDescriptionRu(''); setDescriptionEn(''); setVendorPhone('84'); setMapUrl('');
     };
 
     async function handleSubmitScooter(e: React.FormEvent) {
@@ -105,6 +109,7 @@ export default function AdminPage() {
         const scooterData = { 
             model, 
             price_day: priceDay, 
+            price_2days: price2Days, // НОВОЕ
             price_month: priceMonth, 
             image, 
             images_gallery: imagesGallery, 
@@ -112,7 +117,8 @@ export default function AdminPage() {
             transmission,
             description_ru: descriptionRu,
             description_en: descriptionEn,
-            vendor_phone: vendorPhone 
+            vendor_phone: vendorPhone,
+            map_url: mapUrl // НОВОЕ
         };
 
         if (editingId) {
@@ -236,6 +242,7 @@ export default function AdminPage() {
                             <input className="bg-black/40 p-4 rounded-2xl outline-none border border-white/5 focus:border-green-500 text-white" placeholder="Модель (напр. Honda Vision)" value={model} onChange={e => setModel(e.target.value)} required />
                             <input className="bg-black/40 p-4 rounded-2xl outline-none border border-white/5 focus:border-green-500 text-white" placeholder="WhatsApp (напр. 84123456789)" value={vendorPhone} onChange={e => setVendorPhone(e.target.value)} required />
                             <input className="bg-black/40 p-4 rounded-2xl outline-none border border-white/5 focus:border-green-500 text-white" placeholder="Цена день (напр. 150.000)" value={priceDay} onChange={e => setPriceDay(e.target.value)} required />
+                            <input className="bg-black/40 p-4 rounded-2xl outline-none border border-white/5 focus:border-green-500 text-white" placeholder="Цена от 2 дней (напр. 130.000)" value={price2Days} onChange={e => setPrice2Days(e.target.value)} />
                             <input className="bg-black/40 p-4 rounded-2xl outline-none border border-white/5 focus:border-green-500 text-white" placeholder="Цена месяц (напр. 3.000.000)" value={priceMonth} onChange={e => setPriceMonth(e.target.value)} required />
                             <input className="bg-black/40 p-4 rounded-2xl outline-none border border-white/5 focus:border-green-500 text-white" placeholder="Объем cc (напр. 125)" value={engine} onChange={e => setEngine(e.target.value)} />
                             
@@ -249,6 +256,7 @@ export default function AdminPage() {
                                 <option value="Полуавтомат">Полуавтомат</option>
                             </select>
 
+                            <input className="md:col-span-2 bg-black/40 p-4 rounded-2xl outline-none border border-white/5 focus:border-green-500 text-white" placeholder="Ссылка на Google Maps" value={mapUrl} onChange={e => setMapUrl(e.target.value)} />
                             <input className="md:col-span-2 bg-black/40 p-4 rounded-2xl outline-none border border-white/5 focus:border-green-500 text-white" placeholder="Главное фото (URL)" value={image} onChange={e => setImage(e.target.value)} required />
                             <textarea className="md:col-span-2 bg-black/40 p-4 rounded-2xl outline-none border border-white/5 focus:border-green-500 text-white h-20 resize-none" placeholder="Галерея (ссылки через запятую)" value={imagesGallery} onChange={e => setImagesGallery(e.target.value)} />
                             
