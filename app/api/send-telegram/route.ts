@@ -1,49 +1,71 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-const MY_ADMIN_ID = 1920798985;
-const SUPPORT_CONTACT = "@dragonservicesupport";
-const GOOGLE_MAPS_LINK = "https://maps.google.com/your-location"; // Замените на реальную
-
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const botToken = process.env.TELEGRAM_BOT_TOKEN!;
-    const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
+    const botToken = process.env.TELEGRAM_BOT_TOKEN;
+    const MY_ADMIN_ID = 1920798985;
+    const GOOGLE_MAPS_LINK = "https://maps.google.com/?q=Your+Location"; 
+    const SUPPORT_LINK = "https://t.me/dragonservicesupport";
 
-    // --- 0. CALLBACK LOGIC ---
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+
+    if (!botToken) return NextResponse.json({ error: "No Token" }, { status: 500 });
+
     if (body.callback_query) {
-      const { id: callbackId, data: callbackData, message } = body.callback_query;
-      const chatId = message.chat.id;
-      const messageId = message.message_id;
-      const oldText = message.text || "";
+      const callbackId = body.callback_query.id;
+      const callbackData = body.callback_query.data;
+      const chatId = body.callback_query.message.chat.id;
+      const messageId = body.callback_query.message.message_id;
+      const oldText = body.callback_query.message.text || "";
 
-      const answer = (text?: string) => fetch(`https://api.telegram.org/bot${botToken}/answerCallbackQuery`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ callback_query_id: callbackId, text })
-      });
-
-      if (callbackData === "check_sub") {
-        await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
-            chat_id: chatId, text: "🔄 Нажмите /start еще раз / Press /start again"
-        } as any);
-        return answer();
-      }
+      const answerCallback = async () => {
+        await fetch(`https://api.telegram.org/bot${botToken}/answerCallbackQuery`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ callback_query_id: callbackId })
+        });
+      };
 
       if (callbackData.startsWith('cancel_order_')) {
         const bikeId = callbackData.replace('cancel_order_', '');
         await supabase.from('bookings').update({ status: 'cancelled' }).eq('telegram_id', chatId).eq('bike_id', bikeId).order('created_at', { ascending: false }).limit(1);
         
         await fetch(`https://api.telegram.org/bot${botToken}/editMessageText`, { 
-          method: 'POST', headers: { 'Content-Type': 'application/json' }, 
+          method: 'POST', 
+          headers: { 'Content-Type': 'application/json' }, 
           body: JSON.stringify({
             chat_id: chatId, message_id: messageId,
-            text: "❌ **Бронирование отменено / Booking cancelled**\n\nРешили выбрать другой байк? / Decide to pick another bike?",
+            text: "❌ Ваше бронирование отменено.\nРешили выбрать другой байк? Заходите в каталог.\n\n---\n❌ Your booking has been cancelled.\nDecided to choose another bike? Visit the catalog.",
             parse_mode: "Markdown",
-            reply_markup: { inline_keyboard: [[{ text: "🛵 Open Catalog / Открыть каталог", web_app: { url: "https://scooter-danang.vercel.app" } }]] }
+            reply_markup: { inline_keyboard: [[{ text: "🛵 Открыть каталог / Open Catalog", web_app: { url: "https://scooter-danang.vercel.app" } }]] }
           })
         });
-        return answer();
+        await answerCallback();
+        return NextResponse.json({ ok: true });
+      }
+
+      if (callbackData.startsWith('manage_')) {
+        const orderId = callbackData.split('_')[1];
+        await fetch(`https://api.telegram.org/bot${botToken}/editMessageReplyMarkup`, { 
+          method: 'POST', 
+          headers: { 'Content-Type': 'application/json' }, 
+          body: JSON.stringify({
+            chat_id: chatId, message_id: messageId,
+            reply_markup: {
+              inline_keyboard: [
+                [{ text: "✅ Подтвердить наличие", callback_data: `confirm_${orderId}` }],
+                [{ text: "❌ Нет мест", callback_data: `decline_${orderId}` }],
+                [{ text: "✉️ Написать клиенту", callback_data: `ask_msg_${orderId}` }]
+              ]
+            }
+          })
+        });
+        await answerCallback();
       }
 
       if (callbackData.startsWith('confirm_')) {
@@ -51,17 +73,27 @@ export async function POST(req: Request) {
         const { data: order } = await supabase.from('bookings').select('*').eq('id', id).single();
         if (order && order.status !== 'confirmed') {
           await supabase.from('bookings').update({ status: 'confirmed' }).eq('id', id);
-          const confirmMsg = `🎉 **Бронирование подтверждено! / Booking confirmed!**\n\n🛵: ${order.bike_model}\n📍: ${GOOGLE_MAPS_LINK}`;
           await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, { 
-            method: 'POST', headers: { 'Content-Type': 'application/json' }, 
-            body: JSON.stringify({ chat_id: Number(order.telegram_id), text: confirmMsg, parse_mode: "Markdown" })
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json' }, 
+            body: JSON.stringify({
+              chat_id: Number(order.telegram_id),
+              text: `🎉 **Ваше бронирование подтверждено!**\n\nБайк: ${order.bike_model}\n📍 Мы на карте: ${GOOGLE_MAPS_LINK}\n\n---\n🎉 **Your booking is confirmed!**\n\nBike: ${order.bike_model}\n📍 Location: ${GOOGLE_MAPS_LINK}`,
+              parse_mode: "Markdown"
+            })
           });
           await fetch(`https://api.telegram.org/bot${botToken}/editMessageText`, { 
-            method: 'POST', headers: { 'Content-Type': 'application/json' }, 
-            body: JSON.stringify({ chat_id: MY_ADMIN_ID, message_id: messageId, text: oldText + "\n\n✅ **CONFIRMED**", parse_mode: "Markdown" })
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json' }, 
+            body: JSON.stringify({
+              chat_id: MY_ADMIN_ID,
+              message_id: messageId,
+              text: oldText + "\n\n✅ **СТАТУС: ПОДТВЕРЖДЕНО**",
+              parse_mode: "Markdown"
+            })
           });
         }
-        return answer();
+        await answerCallback();
       }
 
       if (callbackData.startsWith('decline_')) {
@@ -69,120 +101,138 @@ export async function POST(req: Request) {
         const { data: order } = await supabase.from('bookings').select('*').eq('id', id).single();
         if (order && order.status !== 'unavailable') {
           await supabase.from('bookings').update({ status: 'unavailable' }).eq('id', id);
-          const declineMsg = `😔 **Бронирование не подтверждено / Booking not confirmed**\n\nК сожалению, этот байк уже занят. Мы подберем другие варианты!\nUnfortunately, this bike is busy. We will find other options!`;
           await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, { 
-            method: 'POST', headers: { 'Content-Type': 'application/json' }, 
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json' }, 
             body: JSON.stringify({
-              chat_id: Number(order.telegram_id), text: declineMsg, parse_mode: "Markdown",
-              reply_markup: { inline_keyboard: [[{ text: "🤝 Support", url: `https://t.me/${SUPPORT_CONTACT.replace('@','')}` }]] }
+              chat_id: Number(order.telegram_id),
+              text: `😔 **Ваше бронирование не подтверждено.**\n\nК сожалению, этот байк уже занят. Мы подберем для вас похожие варианты и скоро пришлем!\n\n---\n😔 **Your booking was not confirmed.**\n\nUnfortunately, this bike is already taken. We will find similar options for you soon!`,
+              parse_mode: "Markdown",
+              reply_markup: {
+                inline_keyboard: [[{ text: "🤝 Написать менеджеру / Support", url: SUPPORT_LINK }]]
+              }
             })
           });
           await fetch(`https://api.telegram.org/bot${botToken}/editMessageText`, { 
-            method: 'POST', headers: { 'Content-Type': 'application/json' }, 
-            body: JSON.stringify({ chat_id: MY_ADMIN_ID, message_id: messageId, text: oldText + "\n\n❌ **OUT OF STOCK**", parse_mode: "Markdown" })
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json' }, 
+            body: JSON.stringify({
+              chat_id: MY_ADMIN_ID,
+              message_id: messageId,
+              text: oldText + "\n\n❌ **СТАТУС: НЕТ В НАЛИЧИИ**",
+              parse_mode: "Markdown"
+            })
           });
         }
-        return answer();
-      }
-
-      if (callbackData.startsWith('manage_')) {
-        const orderId = callbackData.split('_')[1];
-        await fetch(`https://api.telegram.org/bot${botToken}/editMessageReplyMarkup`, { 
-          method: 'POST', headers: { 'Content-Type': 'application/json' }, 
-          body: JSON.stringify({
-            chat_id: chatId, message_id: messageId,
-            reply_markup: {
-              inline_keyboard: [
-                [{ text: "✅ Подтвердить", callback_data: `confirm_${orderId}` }],
-                [{ text: "❌ Нет мест", callback_data: `decline_${orderId}` }],
-                [{ text: "✉️ Написать клиенту", callback_data: `ask_msg_${orderId}` }]
-              ]
-            }
-          })
-        });
-        return answer();
+        await answerCallback();
       }
 
       if (callbackData.startsWith('ask_msg_')) {
+        const id = callbackData.split('_')[1];
         await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, { 
-          method: 'POST', headers: { 'Content-Type': 'application/json' }, 
+          method: 'POST', 
+          headers: { 'Content-Type': 'application/json' }, 
           body: JSON.stringify({
             chat_id: MY_ADMIN_ID,
-            text: `📝 Напишите сообщение для заказа №${callbackData.split('_')[2]}:\n(Используйте REPLY)`,
+            text: `📝 Напишите сообщение для заказа №${id}:\n(Обязательно используйте ОТВЕТ/REPLY на это сообщение)`,
             reply_markup: { force_reply: true, selective: true }
           })
         });
-        return answer();
+        await answerCallback();
       }
+      return NextResponse.json({ ok: true });
     }
 
-    // --- 1. MESSAGE LOGIC ---
     if (body.message) {
       const chatId = body.message.chat.id;
       const text = body.message.text || '';
 
       if (chatId === MY_ADMIN_ID && body.message.reply_to_message) {
-        const idMatch = body.message.reply_to_message.text.match(/(?:№|заказа\s+)(\d+)/i);
-        if (idMatch) {
-          const { data: order } = await supabase.from('bookings').select('telegram_id').eq('id', idMatch[1]).single();
+        const replySourceText = body.message.reply_to_message.text || "";
+        const idMatch = replySourceText.match(/(?:№|заказа\s+)(\d+)/i);
+        
+        if (idMatch && text.trim().length > 0) {
+          const orderId = idMatch[1];
+          const { data: order } = await supabase.from('bookings').select('telegram_id').eq('id', orderId).single();
+          
           if (order?.telegram_id) {
             await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, { 
-              method: 'POST', headers: { 'Content-Type': 'application/json' }, 
-              body: JSON.stringify({ chat_id: Number(order.telegram_id), text: `💬 **Manager:**\n\n${text}`, parse_mode: "Markdown" })
+              method: 'POST', 
+              headers: { 'Content-Type': 'application/json' }, 
+              body: JSON.stringify({
+                chat_id: Number(order.telegram_id),
+                text: `💬 **Сообщение от менеджера / Message from manager:**\n\n${text}`,
+                parse_mode: "Markdown"
+              })
             });
             await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, { 
-              method: 'POST', headers: { 'Content-Type': 'application/json' }, 
-              body: JSON.stringify({ chat_id: MY_ADMIN_ID, text: `✅ OK (№${idMatch[1]})` })
+              method: 'POST', 
+              headers: { 'Content-Type': 'application/json' }, 
+              body: JSON.stringify({ chat_id: MY_ADMIN_ID, text: `✅ Доставлено клиенту (заказ №${orderId})` })
             });
             return NextResponse.json({ ok: true });
           }
         }
       }
 
-      const welcomeMessage = `✨ **Welcome to the Da Nang Bike Catalog!**\n\nНаш сервис помогает арендовать транспорт за несколько кликов.\nOur service helps you rent a bike in just a few clicks.\n\n---\n🤝 **Support:** ${SUPPORT_CONTACT}`;
+      if (text === '/admin' && chatId === MY_ADMIN_ID) {
+        const { data: orders } = await supabase.from('bookings').select('*').order('created_at', { ascending: false }).limit(5);
+        for (const o of orders || []) {
+          const statusIcon = o.status === 'confirmed' ? '✅' : o.status === 'cancelled' ? '❌' : '⏳';
+          await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              chat_id: MY_ADMIN_ID,
+              text: `${statusIcon} **Заказ №${o.id}**\nБайк: ${o.bike_model}\nДаты: ${o.start_date} - ${o.end_date}\nСумма: ${o.total_price || '—'}\nКлиент: @${o.client_username}`,
+              parse_mode: "Markdown",
+              reply_markup: { inline_keyboard: [[{ text: "⚙️ Управлять", callback_data: `manage_${o.id}` }]] }
+            })
+          });
+        }
+        return NextResponse.json({ ok: true });
+      }
+
+      const welcomeMessage = `✨ **Добро пожаловать в каталог байков Дананга!**\n\nНаш сервис помогает вам арендовать транспорт за несколько кликов без лишних заморочек. 🛵\n\n---\n✨ **Welcome to the Da Nang Bike Catalog!**\n\nOur service helps you rent transport in a few clicks without any hassle. 🛵\n\n🤝 **Менеджер / Support:** @dragonservicesupport`;
+      
       await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, { 
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, 
+        method: 'POST', 
+        headers: { 'Content-Type': 'application/json' }, 
         body: JSON.stringify({
-          chat_id: chatId, text: welcomeMessage, parse_mode: "Markdown",
-          reply_markup: { inline_keyboard: [[{ text: "🛵 Open Catalog / Открыть каталог", web_app: { url: "https://scooter-danang.vercel.app" } }]] }
+          chat_id: chatId, 
+          text: welcomeMessage, 
+          parse_mode: "Markdown",
+          reply_markup: { inline_keyboard: [[{ text: "🛵 Открыть каталог / Open Catalog", web_app: { url: "https://scooter-danang.vercel.app" } }]] }
         })
       });
+      return NextResponse.json({ ok: true });
     }
 
-    // --- 2. NEW ORDER LOGIC ---
     const { bike_model, start_date, end_date, client_username, telegram_id, bike_id, total_price } = body;
     if (bike_model && telegram_id) {
       const { data: newOrder } = await supabase.from('bookings').insert([{
         bike_id, bike_model, start_date, end_date, client_username, telegram_id, status: 'pending', total_price
       }]).select().single();
 
-      // Уведомление админу (с суммой)
       await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           chat_id: MY_ADMIN_ID, 
           text: `🔔 **НОВЫЙ ЗАКАЗ №${newOrder?.id}**\n\n**Байк:** ${bike_model}\n**Даты:** ${start_date} — ${end_date}\n**Сумма:** ${total_price}\n**Клиент:** @${client_username}`, 
-          reply_markup: { inline_keyboard: [[{ text: "⚙️ Manage", callback_data: `manage_${newOrder?.id}` }]] }
+          reply_markup: { inline_keyboard: [[{ text: "⚙️ Управлять заказом", callback_data: `manage_${newOrder?.id}` }]] }
         }),
       });
 
-      // Уведомление клиенту
-      const bookingMessage = 
-        `✅ **Заявка принята! / Order received!**\n\n` +
-        `Мы уже уточняем наличие **${bike_model}**. Ожидайте уведомления.\n` +
-        `We are checking the availability of **${bike_model}**. Wait for notification.\n\n` +
-        `💰 **Total:** ${total_price}\n` +
-        `🕒 **Hours:** 10:00 — 22:00\n` +
-        `🤝 **Support:** ${SUPPORT_CONTACT}`;
-
+      const bookingMessage = `✅ **Заявка принята! / Order received!**\n\nМы уже уточняем наличие **${bike_model}**. Мы сами пришлем вам уведомление.\n\n---\n🕒 **Время обработки / Processing hours:** 10:00 — 22:00 (Local time)\n\n🤝 **Менеджер / Support:** @dragonservicesupport`;
       await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          chat_id: Number(telegram_id), text: bookingMessage, parse_mode: 'Markdown',
+          chat_id: Number(telegram_id), 
+          text: bookingMessage, 
+          parse_mode: 'Markdown',
           reply_markup: { 
             inline_keyboard: [
-              [{ text: "🤝 Support", url: `https://t.me/${SUPPORT_CONTACT.replace('@','')}` }], 
-              [{ text: "❌ Cancel", callback_data: `cancel_order_${bike_id}` }]
+              [{ text: "🤝 Связаться с менеджером / Support", url: SUPPORT_LINK }], 
+              [{ text: "❌ Отменить бронирование / Cancel", callback_data: `cancel_order_${bike_id}` }]
             ] 
           }
         }),
@@ -190,7 +240,7 @@ export async function POST(req: Request) {
     }
     
     return NextResponse.json({ ok: true });
-  } catch (error) {
+  } catch (error: any) {
     return NextResponse.json({ ok: true }); 
   }
 }

@@ -1,18 +1,13 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/app/supabase'; 
 
-const CHANNEL_ID = "@dragonindanang"; // ID вашего канала
-const SUPPORT_CONTACT = "@dragonservicesupport";
-
-async function checkSubscription(chatId: number, token: string) {
+async function checkSubscription(botToken: string, userId: number) {
   try {
-    const response = await fetch(`https://api.telegram.org/bot${token}/getChatMember?chat_id=${CHANNEL_ID}&user_id=${chatId}`);
+    const response = await fetch(`https://api.telegram.org/bot${botToken}/getChatMember?chat_id=@dragonindanang&user_id=${userId}`);
     const data = await response.json();
-    if (!data.ok) return true; // Если ошибка (бот не админ), пропускаем
-    const status = data.result.status;
-    return ['member', 'administrator', 'creator'].includes(status);
+    return data.ok && ['member', 'administrator', 'creator'].includes(data.result?.status);
   } catch (e) {
-    return true; 
+    return true; // В случае ошибки API пропускаем, чтобы не блокировать бота
   }
 }
 
@@ -20,50 +15,41 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
     const message = body.message;
+    const token = process.env.TELEGRAM_BOT_TOKEN!;
+
     if (!message || !message.chat) return NextResponse.json({ ok: true });
 
     const chatId = message.chat.id;
     const text = message.text || "";
     const username = message.from?.username || "anonymous";
-    const token = process.env.TELEGRAM_BOT_TOKEN!;
 
-    // 1. ПРОВЕРКА ПОДПИСКИ
-    const isSubscribed = await checkSubscription(chatId, token);
-    if (!isSubscribed) {
-      const subMessage = 
-        "👋 **Привет! / Hello!**\n\n" +
-        "Чтобы не потерять связь и пользоваться каталогом, пожалуйста, подпишись на наше сообщество в Дананге:\n\n" +
-        "Please subscribe to our community in Da Nang to stay in touch and use the catalog:\n\n" +
-        "👉 https://t.me/dragonindanang";
-
-      await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          chat_id: chatId,
-          text: subMessage,
-          reply_markup: {
-            inline_keyboard: [[{ text: "✅ Я подписался / I subscribed", callback_data: "check_sub" }]]
-          }
-        }),
-      });
-      return NextResponse.json({ ok: true });
-    }
-
-    // 2. ЛОГИКА /START
     if (text.startsWith('/start')) {
       const parts = text.split(' ');
       const startParam = parts.length > 1 ? parts[1] : 'direct';
 
       await supabase.from('users').upsert({ 
-          telegram_id: chatId, referrer: startParam, username: username 
+        telegram_id: chatId, 
+        referrer: startParam, 
+        username: username 
       }, { onConflict: 'telegram_id' });
 
-      const welcomeMessage = 
-        "✨ **Добро пожаловать в каталог байков! / Welcome to the bike catalog!**\n\n" +
-        "Мы предоставляем качественный сервис без лишних заморочек. Выбирайте и бронируйте в один клик!\n" +
+      const isSubscribed = await checkSubscription(token, chatId);
+
+      let welcomeMessage = 
+        "🇷🇺 **Добро пожаловать в каталог байков Дананга!**\n" +
+        "Мы предоставляем качественный сервис без лишних заморочек. Выбирайте и бронируйте в один клик!\n\n" +
+        "🆘 По возникшим вопросам пишите менеджеру: @dragonservicesupport\n\n" +
+        "--- \n\n" +
+        "🇬🇧 **Welcome to the Danang bike catalog!**\n" +
         "We provide high-quality service without any hassle. Choose and book in one click!\n\n" +
-        `🆘 **Support:** ${SUPPORT_CONTACT}`;
+        "🆘 For any questions, please contact our manager: @dragonservicesupport";
+
+      if (!isSubscribed) {
+        welcomeMessage += "\n\n---\n" +
+          "📢 **Пожалуйста, подпишитесь на наш канал, чтобы не потерять связь и быть в курсе новостей:**\n" +
+          "📢 **Please subscribe to our channel to stay in touch and keep up with news:**\n" +
+          "https://t.me/dragonindanang";
+      }
 
       await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
         method: 'POST',
@@ -73,10 +59,10 @@ export async function POST(req: Request) {
           text: welcomeMessage,
           parse_mode: "Markdown",
           reply_markup: {
-            inline_keyboard: [[{ 
-              text: "🛵 Open Catalog / Открыть каталог", 
-              web_app: { url: "https://scooter-danang.vercel.app" } 
-            }]]
+            inline_keyboard: [
+              [{ text: "📢 Subscribe / Подписаться", url: "https://t.me/dragonindanang" }],
+              [{ text: "🛵 Open Catalog / Открыть каталог", web_app: { url: "https://scooter-danang.vercel.app" } }]
+            ]
           }
         }),
       });
@@ -84,6 +70,11 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ ok: true });
   } catch (error) {
+    console.error("Critical Webhook error:", error);
     return NextResponse.json({ ok: false });
   }
+}
+
+export async function GET() {
+  return NextResponse.json({ status: "alive" });
 }
