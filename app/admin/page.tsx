@@ -25,7 +25,9 @@ export default function AdminPage() {
     const [image, setImage] = useState('');
     const [imagesGallery, setImagesGallery] = useState(''); 
     const [engine, setEngine] = useState('');
-    const [year, setYear] = useState('');
+    const [transmission, setTransmission] = useState('Автомат');
+    const [descriptionRu, setDescriptionRu] = useState('');
+    const [descriptionEn, setDescriptionEn] = useState('');
     const [vendorPhone, setVendorPhone] = useState('84'); 
 
     useEffect(() => {
@@ -63,9 +65,7 @@ export default function AdminPage() {
 
     const handleLogin = (e: React.FormEvent) => {
         e.preventDefault();
-        // Берем пароль из переменных окружения Vercel
         const correctPassword = process.env.NEXT_PUBLIC_ADMIN_PASSWORD;
-
         if (adminPassword === correctPassword) {
             setIsAuthenticated(true);
         } else {
@@ -74,7 +74,6 @@ export default function AdminPage() {
         }
     };
 
-    // Заполнение полей для редактирования
     const startEdit = (scooter: any) => {
         setEditingId(scooter.id);
         setModel(scooter.model);
@@ -83,7 +82,9 @@ export default function AdminPage() {
         setImage(scooter.image);
         setImagesGallery(scooter.images_gallery || '');
         setEngine(scooter.engine || '');
-        setYear(scooter.year || '');
+        setTransmission(scooter.transmission || 'Автомат');
+        setDescriptionRu(scooter.description_ru || '');
+        setDescriptionEn(scooter.description_en || '');
         setVendorPhone(scooter.vendor_phone || '84');
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
@@ -95,10 +96,10 @@ export default function AdminPage() {
 
     const resetForm = () => {
         setModel(''); setPriceDay(''); setPriceMonth(''); setImage('');
-        setImagesGallery(''); setEngine(''); setYear(''); setVendorPhone('84');
+        setImagesGallery(''); setEngine(''); setTransmission('Автомат');
+        setDescriptionRu(''); setDescriptionEn(''); setVendorPhone('84');
     };
 
-    // --- Управление байками (Создание / Обновление) ---
     async function handleSubmitScooter(e: React.FormEvent) {
         e.preventDefault();
         const scooterData = { 
@@ -108,12 +109,13 @@ export default function AdminPage() {
             image, 
             images_gallery: imagesGallery, 
             engine, 
-            year,
+            transmission,
+            description_ru: descriptionRu,
+            description_en: descriptionEn,
             vendor_phone: vendorPhone 
         };
 
         if (editingId) {
-            // ОБНОВЛЕНИЕ
             const { error } = await supabase.from('scooters').update(scooterData).eq('id', editingId);
             if (error) alert('Ошибка обновления: ' + error.message);
             else {
@@ -123,7 +125,6 @@ export default function AdminPage() {
                 fetchData();
             }
         } else {
-            // СОЗДАНИЕ
             const { error } = await supabase.from('scooters').insert([scooterData]);
             if (error) alert('Ошибка добавления: ' + error.message);
             else {
@@ -232,15 +233,28 @@ export default function AdminPage() {
                                 <h3 className="text-sm font-bold uppercase tracking-widest text-gray-500 italic">{editingId ? 'Редактировать байк' : 'Добавить новый байк'}</h3>
                                 {editingId && <button type="button" onClick={cancelEdit} className="text-red-500 text-[10px] font-bold uppercase tracking-widest">Отмена ❌</button>}
                             </div>
-                            <input className="bg-black/40 p-4 rounded-2xl outline-none border border-white/5 focus:border-green-500 text-white" placeholder="Модель" value={model} onChange={e => setModel(e.target.value)} required />
-                            <input className="bg-black/40 p-4 rounded-2xl outline-none border border-white/5 focus:border-green-500 text-white" placeholder="WhatsApp" value={vendorPhone} onChange={e => setVendorPhone(e.target.value)} required />
-                            <input className="bg-black/40 p-4 rounded-2xl outline-none border border-white/5 focus:border-green-500 text-white" placeholder="Цена день" value={priceDay} onChange={e => setPriceDay(e.target.value)} required />
-                            <input className="bg-black/40 p-4 rounded-2xl outline-none border border-white/5 focus:border-green-500 text-white" placeholder="Цена месяц" value={priceMonth} onChange={e => setPriceMonth(e.target.value)} required />
-                            <input className="bg-black/40 p-4 rounded-2xl outline-none border border-white/5 focus:border-green-500 text-white" placeholder="Объем cc" value={engine} onChange={e => setEngine(e.target.value)} />
-                            <input className="bg-black/40 p-4 rounded-2xl outline-none border border-white/5 focus:border-green-500 text-white" placeholder="Год" value={year} onChange={e => setYear(e.target.value)} />
-                            <input className="md:col-span-2 bg-black/40 p-4 rounded-2xl outline-none border border-white/5 focus:border-green-500 text-white" placeholder="Главное фото (URL)" value={image} onChange={e => setImage(e.target.value)} required />
-                            <textarea className="md:col-span-2 bg-black/40 p-4 rounded-2xl outline-none border border-white/5 focus:border-green-500 text-white h-24 resize-none" placeholder="Галерея (ссылки через запятую)" value={imagesGallery} onChange={e => setImagesGallery(e.target.value)} />
+                            <input className="bg-black/40 p-4 rounded-2xl outline-none border border-white/5 focus:border-green-500 text-white" placeholder="Модель (напр. Honda Vision)" value={model} onChange={e => setModel(e.target.value)} required />
+                            <input className="bg-black/40 p-4 rounded-2xl outline-none border border-white/5 focus:border-green-500 text-white" placeholder="WhatsApp (напр. 84123456789)" value={vendorPhone} onChange={e => setVendorPhone(e.target.value)} required />
+                            <input className="bg-black/40 p-4 rounded-2xl outline-none border border-white/5 focus:border-green-500 text-white" placeholder="Цена день (напр. 150.000)" value={priceDay} onChange={e => setPriceDay(e.target.value)} required />
+                            <input className="bg-black/40 p-4 rounded-2xl outline-none border border-white/5 focus:border-green-500 text-white" placeholder="Цена месяц (напр. 3.000.000)" value={priceMonth} onChange={e => setPriceMonth(e.target.value)} required />
+                            <input className="bg-black/40 p-4 rounded-2xl outline-none border border-white/5 focus:border-green-500 text-white" placeholder="Объем cc (напр. 125)" value={engine} onChange={e => setEngine(e.target.value)} />
                             
+                            <select 
+                                className="bg-black/40 p-4 rounded-2xl outline-none border border-white/5 focus:border-green-500 text-white cursor-pointer"
+                                value={transmission}
+                                onChange={e => setTransmission(e.target.value)}
+                            >
+                                <option value="Автомат">Автомат</option>
+                                <option value="Механика">Механика</option>
+                                <option value="Полуавтомат">Полуавтомат</option>
+                            </select>
+
+                            <input className="md:col-span-2 bg-black/40 p-4 rounded-2xl outline-none border border-white/5 focus:border-green-500 text-white" placeholder="Главное фото (URL)" value={image} onChange={e => setImage(e.target.value)} required />
+                            <textarea className="md:col-span-2 bg-black/40 p-4 rounded-2xl outline-none border border-white/5 focus:border-green-500 text-white h-20 resize-none" placeholder="Галерея (ссылки через запятую)" value={imagesGallery} onChange={e => setImagesGallery(e.target.value)} />
+                            
+                            <textarea className="bg-black/40 p-4 rounded-2xl outline-none border border-white/5 focus:border-green-500 text-white h-32 resize-none" placeholder="Описание (RU)" value={descriptionRu} onChange={e => setDescriptionRu(e.target.value)} />
+                            <textarea className="bg-black/40 p-4 rounded-2xl outline-none border border-white/5 focus:border-green-500 text-white h-32 resize-none" placeholder="Description (EN)" value={descriptionEn} onChange={e => setDescriptionEn(e.target.value)} />
+
                             <button type="submit" className={`md:col-span-2 p-5 rounded-2xl font-black uppercase text-[11px] tracking-widest transition-all text-white ${editingId ? 'bg-blue-600 hover:bg-blue-500' : 'bg-green-600 hover:bg-green-500'}`}>
                                 {editingId ? 'Сохранить изменения' : 'Опубликовать байк'}
                             </button>
@@ -251,7 +265,10 @@ export default function AdminPage() {
                                 <div key={s.id} className="bg-[#11141b] p-4 rounded-[2rem] flex justify-between items-center border border-white/5">
                                     <div className="flex items-center gap-4">
                                         <img src={s.image} className="w-12 h-12 object-cover rounded-xl shadow-lg" alt="" />
-                                        <p className="font-bold uppercase italic text-sm">{s.model}</p>
+                                        <div>
+                                            <p className="font-bold uppercase italic text-sm">{s.model}</p>
+                                            <p className="text-[9px] text-gray-500 uppercase">{s.transmission} • {s.engine}cc</p>
+                                        </div>
                                     </div>
                                     <div className="flex gap-2">
                                         <button onClick={() => startEdit(s)} className="text-blue-500 text-[10px] font-bold uppercase border border-blue-500/20 px-4 py-2 rounded-xl hover:bg-blue-500 hover:text-white transition-all">Правка</button>
