@@ -3,6 +3,7 @@ import { supabase } from '@/app/supabase';
 
 async function checkSubscription(botToken: string, userId: number) {
   try {
+    // Используем POST запрос к getChatMember для надежности
     const response = await fetch(`https://api.telegram.org/bot${botToken}/getChatMember`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -14,15 +15,21 @@ async function checkSubscription(botToken: string, userId: number) {
     
     const data = await response.json();
     
+    // Если бот не админ или ошибка канала — возвращаем false (просим подписаться)
     if (!data.ok) {
-      console.error("Telegram API Error:", data.description);
+      console.error("Ошибка проверки подписки:", data.description);
       return false;
     }
     
     const status = data.result?.status;
-    return ['member', 'administrator', 'creator'].includes(status);
+    
+    // Четкий список статусов, которые считаются ПОДПИСКОЙ
+    const isMember = ['member', 'administrator', 'creator'].includes(status);
+    
+    // Статусы 'left' (вышел) или 'kicked' (забанен) возвращают false
+    return isMember;
   } catch (e) {
-    console.error("Subscription check fetch error:", e);
+    console.error("Ошибка сети при проверке:", e);
     return false; 
   }
 }
@@ -43,14 +50,17 @@ export async function POST(req: Request) {
       const parts = text.split(' ');
       const startParam = parts.length > 1 ? parts[1] : 'direct';
 
+      // 1. Сохраняем пользователя
       await supabase.from('users').upsert({ 
         telegram_id: chatId, 
         referrer: startParam, 
         username: username 
       }, { onConflict: 'telegram_id' });
 
+      // 2. СРАЗУ проверяем подписку
       const isSubscribed = await checkSubscription(token, chatId);
 
+      // 3. Формируем текст
       let welcomeMessage = 
         "🇷🇺 **Добро пожаловать в каталог байков Дананга!**\n" +
         "Мы предоставляем качественный сервис без лишних заморочек. Выбирайте и бронируйте в один клик!\n\n" +
@@ -62,19 +72,17 @@ export async function POST(req: Request) {
 
       if (!isSubscribed) {
         welcomeMessage += "\n\n" +
-          "📢 **Подпишитесь, чтобы не потеряться! / Subscribe to stay in touch:**\n" +
-          "🇷🇺 Пожалуйста, подпишитесь на наш канал, чтобы не потерять связь и быть в курсе новостей.\n" +
-          "🇬🇧 Please subscribe to our channel to stay in touch and keep up with news.\n" +
+          "⚠️ **Внимание / Attention**\n" +
+          "🇷🇺 Пожалуйста, подпишитесь на наш канал, чтобы получить доступ к каталогу и новостям:\n" +
+          "🇬🇧 Please subscribe to our channel to get access to the catalog and news:\n" +
           "👉 https://t.me/dragonindanang";
       }
 
-      // ИСПРАВЛЕННАЯ СТРУКТУРА КЛАВИАТУРЫ
+      // 4. Формируем клавиатуру
       const keyboard = [];
-
       if (!isSubscribed) {
         keyboard.push([{ text: "📢 Subscribe / Подписаться", url: "https://t.me/dragonindanang" }]);
       }
-
       keyboard.push([{ 
         text: "🛵 Open Catalog / Открыть каталог", 
         web_app: { url: "https://scooter-danang.vercel.app" } 
