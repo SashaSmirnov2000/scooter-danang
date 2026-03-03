@@ -2,13 +2,12 @@
 import { useState, useEffect } from 'react';
 import { supabase } from "../supabase";
 
-// Настройка комиссии (поменяй, если нужно другое число)
 const COMMISSION_PER_ORDER = 50000;
 
 export default function AdminPage() {
     const [scooters, setScooters] = useState<any[]>([]);
     const [bookings, setBookings] = useState<any[]>([]);
-    const [partners, setPartners] = useState<any[]>([]); // Состояние для партнеров
+    const [partners, setPartners] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState<'bikes' | 'bookings' | 'partners'>('bookings');
     
@@ -16,7 +15,10 @@ export default function AdminPage() {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [adminPassword, setAdminPassword] = useState('');
 
-    // Поля для нового байка
+    // Состояние редактирования
+    const [editingId, setEditingId] = useState<number | null>(null);
+
+    // Поля формы
     const [model, setModel] = useState('');
     const [priceDay, setPriceDay] = useState('');
     const [priceMonth, setPriceMonth] = useState('');
@@ -42,9 +44,7 @@ export default function AdminPage() {
                 const { data } = await supabase.from('bookings').select('*').order('created_at', { ascending: false });
                 if (data) setBookings(data);
             } else if (activeTab === 'partners') {
-                // Загружаем всех партнеров
                 const { data: pData } = await supabase.from('partners').select('*').neq('name', 'admin');
-                // Загружаем все выполненные брони для расчета баланса
                 const { data: bData } = await supabase.from('bookings').select('referrer').eq('status', 'completed');
                 
                 if (pData) {
@@ -61,16 +61,12 @@ export default function AdminPage() {
         setLoading(false);
     }
 
-    const handleLogin = async (e: React.FormEvent) => {
+    const handleLogin = (e: React.FormEvent) => {
         e.preventDefault();
-        const { data } = await supabase
-            .from('partners')
-            .select('*')
-            .eq('name', 'admin')
-            .eq('password', adminPassword)
-            .maybeSingle();
+        // Берем пароль из переменных окружения Vercel
+        const correctPassword = process.env.NEXT_PUBLIC_ADMIN_PASSWORD;
 
-        if (data) {
+        if (adminPassword === correctPassword) {
             setIsAuthenticated(true);
         } else {
             alert('Неверный пароль админа!');
@@ -78,29 +74,63 @@ export default function AdminPage() {
         }
     };
 
-    // --- Управление байками ---
-    async function addScooter(e: React.FormEvent) {
-        e.preventDefault();
-        const { error } = await supabase.from('scooters').insert([
-            { 
-                model, 
-                price_day: priceDay, 
-                price_month: priceMonth, 
-                image, 
-                images_gallery: imagesGallery, 
-                engine, 
-                year,
-                vendor_phone: vendorPhone 
-            }
-        ]);
+    // Заполнение полей для редактирования
+    const startEdit = (scooter: any) => {
+        setEditingId(scooter.id);
+        setModel(scooter.model);
+        setPriceDay(scooter.price_day);
+        setPriceMonth(scooter.price_month);
+        setImage(scooter.image);
+        setImagesGallery(scooter.images_gallery || '');
+        setEngine(scooter.engine || '');
+        setYear(scooter.year || '');
+        setVendorPhone(scooter.vendor_phone || '84');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
 
-        if (error) {
-            alert('Ошибка: ' + error.message);
+    const cancelEdit = () => {
+        setEditingId(null);
+        resetForm();
+    };
+
+    const resetForm = () => {
+        setModel(''); setPriceDay(''); setPriceMonth(''); setImage('');
+        setImagesGallery(''); setEngine(''); setYear(''); setVendorPhone('84');
+    };
+
+    // --- Управление байками (Создание / Обновление) ---
+    async function handleSubmitScooter(e: React.FormEvent) {
+        e.preventDefault();
+        const scooterData = { 
+            model, 
+            price_day: priceDay, 
+            price_month: priceMonth, 
+            image, 
+            images_gallery: imagesGallery, 
+            engine, 
+            year,
+            vendor_phone: vendorPhone 
+        };
+
+        if (editingId) {
+            // ОБНОВЛЕНИЕ
+            const { error } = await supabase.from('scooters').update(scooterData).eq('id', editingId);
+            if (error) alert('Ошибка обновления: ' + error.message);
+            else {
+                alert('Байк обновлен!');
+                setEditingId(null);
+                resetForm();
+                fetchData();
+            }
         } else {
-            alert('Байк добавлен!');
-            setModel(''); setPriceDay(''); setPriceMonth(''); setImage('');
-            setImagesGallery(''); setEngine(''); setYear('');
-            fetchData();
+            // СОЗДАНИЕ
+            const { error } = await supabase.from('scooters').insert([scooterData]);
+            if (error) alert('Ошибка добавления: ' + error.message);
+            else {
+                alert('Байк добавлен!');
+                resetForm();
+                fetchData();
+            }
         }
     }
 
@@ -110,13 +140,8 @@ export default function AdminPage() {
         if (!error) fetchData();
     }
 
-    // --- Управление заявками ---
     async function markAsPaid(id: string) {
-        const { error } = await supabase
-            .from('bookings')
-            .update({ status: 'completed' })
-            .eq('id', id);
-        
+        const { error } = await supabase.from('bookings').update({ status: 'completed' }).eq('id', id);
         if (!error) fetchData();
     }
 
@@ -147,51 +172,27 @@ export default function AdminPage() {
     return (
         <div className="min-h-screen bg-[#05070a] text-white p-4 md:p-8 font-sans">
             <div className="max-w-5xl mx-auto">
-                
-                {/* Header Section */}
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-12 gap-6">
                     <div>
                         <p className="text-green-500 text-[10px] font-black tracking-[0.3em] uppercase mb-2">Management</p>
                         <h1 className="text-4xl font-bold italic uppercase">Админ-панель</h1>
                     </div>
                     
-                    {/* Твои вкладки (Добавлена кнопка Партнеры) */}
                     <div className="flex bg-[#11141b] p-1 rounded-2xl border border-white/5 overflow-x-auto">
-                        <button 
-                            onClick={() => setActiveTab('bookings')}
-                            className={`px-4 md:px-6 py-3 rounded-xl text-[10px] font-bold uppercase transition-all whitespace-nowrap ${activeTab === 'bookings' ? 'bg-green-600 text-white' : 'text-gray-400 hover:text-white'}`}
-                        >
-                            Заявки
-                        </button>
-                        <button 
-                            onClick={() => setActiveTab('partners')}
-                            className={`px-4 md:px-6 py-3 rounded-xl text-[10px] font-bold uppercase transition-all whitespace-nowrap ${activeTab === 'partners' ? 'bg-green-600 text-white' : 'text-gray-400 hover:text-white'}`}
-                        >
-                            Партнеры
-                        </button>
-                        <button 
-                            onClick={() => setActiveTab('bikes')}
-                            className={`px-4 md:px-6 py-3 rounded-xl text-[10px] font-bold uppercase transition-all whitespace-nowrap ${activeTab === 'bikes' ? 'bg-green-600 text-white' : 'text-gray-400 hover:text-white'}`}
-                        >
-                            Байки
-                        </button>
+                        <button onClick={() => setActiveTab('bookings')} className={`px-4 md:px-6 py-3 rounded-xl text-[10px] font-bold uppercase transition-all whitespace-nowrap ${activeTab === 'bookings' ? 'bg-green-600 text-white' : 'text-gray-400 hover:text-white'}`}>Заявки</button>
+                        <button onClick={() => setActiveTab('partners')} className={`px-4 md:px-6 py-3 rounded-xl text-[10px] font-bold uppercase transition-all whitespace-nowrap ${activeTab === 'partners' ? 'bg-green-600 text-white' : 'text-gray-400 hover:text-white'}`}>Партнеры</button>
+                        <button onClick={() => setActiveTab('bikes')} className={`px-4 md:px-6 py-3 rounded-xl text-[10px] font-bold uppercase transition-all whitespace-nowrap ${activeTab === 'bikes' ? 'bg-green-600 text-white' : 'text-gray-400 hover:text-white'}`}>Байки</button>
                     </div>
                 </div>
 
-                {/* TAB: ЗАЯВКИ (БРОНИРОВАНИЯ) */}
                 {activeTab === 'bookings' && (
                     <div className="grid gap-4">
-                        <div className="flex justify-between items-center mb-4">
-                            <h3 className="text-sm font-bold uppercase tracking-widest text-gray-500 italic">Последние бронирования</h3>
-                            <button onClick={fetchData} className="text-[10px] uppercase font-bold text-green-500">Обновить 🔄</button>
-                        </div>
-                        {loading ? <p>Загрузка...</p> : bookings.length === 0 ? <p className="text-gray-500 italic">Заявок пока нет</p> : bookings.map(b => (
+                        <div className="flex justify-between items-center mb-4 text-sm font-bold uppercase tracking-widest text-gray-500 italic">Последние бронирования <button onClick={fetchData} className="text-[10px] text-green-500">Обновить 🔄</button></div>
+                        {loading ? <p>Загрузка...</p> : bookings.length === 0 ? <p className="text-gray-500 italic text-center">Заявок пока нет</p> : bookings.map(b => (
                             <div key={b.id} className={`p-6 rounded-[2rem] border transition-all flex flex-col md:flex-row justify-between items-center gap-6 ${b.status === 'completed' ? 'bg-green-500/5 border-green-500/20' : 'bg-[#11141b] border-white/5'}`}>
                                 <div className="text-center md:text-left">
                                     <div className="flex items-center gap-3 mb-2 justify-center md:justify-start">
-                                        <span className={`text-[9px] font-black uppercase px-3 py-1 rounded-full ${b.status === 'completed' ? 'bg-green-500 text-white' : 'bg-yellow-500 text-black'}`}>
-                                            {b.status === 'completed' ? 'Оплачено' : 'Ожидает'}
-                                        </span>
+                                        <span className={`text-[9px] font-black uppercase px-3 py-1 rounded-full ${b.status === 'completed' ? 'bg-green-500 text-white' : 'bg-yellow-500 text-black'}`}>{b.status === 'completed' ? 'Оплачено' : 'Ожидает'}</span>
                                         <span className="text-[10px] text-gray-500">@{b.client_username}</span>
                                     </div>
                                     <h4 className="text-xl font-bold uppercase italic">{b.bike_model}</h4>
@@ -199,23 +200,17 @@ export default function AdminPage() {
                                     {b.referrer && <p className="text-[10px] text-blue-500 font-bold uppercase mt-2 italic">Партнер: {b.referrer}</p>}
                                 </div>
                                 {b.status === 'pending' && (
-                                    <button onClick={() => markAsPaid(b.id)} className="bg-green-600 hover:bg-green-500 text-white px-8 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all">
-                                        Подтвердить оплату ✅
-                                    </button>
+                                    <button onClick={() => markAsPaid(b.id)} className="bg-green-600 hover:bg-green-500 text-white px-8 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all">Подтвердить оплату ✅</button>
                                 )}
                             </div>
                         ))}
                     </div>
                 )}
 
-                {/* TAB: ПАРТНЕРЫ (НОВАЯ ВКЛАДКА) */}
                 {activeTab === 'partners' && (
                     <div className="grid gap-4">
-                         <div className="flex justify-between items-center mb-4">
-                            <h3 className="text-sm font-bold uppercase tracking-widest text-gray-500 italic">Список партнеров и балансы</h3>
-                            <button onClick={fetchData} className="text-[10px] uppercase font-bold text-green-500">Обновить 🔄</button>
-                        </div>
-                        {loading ? <p>Загрузка...</p> : partners.length === 0 ? <p className="text-gray-500 italic">Партнеров пока нет</p> : partners.map(p => (
+                        <div className="flex justify-between items-center mb-4 text-sm font-bold uppercase tracking-widest text-gray-500 italic">Список партнеров и балансы <button onClick={fetchData} className="text-[10px] text-green-500">Обновить 🔄</button></div>
+                        {loading ? <p>Загрузка...</p> : partners.length === 0 ? <p className="text-gray-500 italic text-center">Партнеров пока нет</p> : partners.map(p => (
                             <div key={p.id} className="bg-[#11141b] p-6 rounded-[2rem] border border-white/5 flex justify-between items-center">
                                 <div>
                                     <p className="text-green-500 font-black uppercase text-lg italic tracking-widest">{p.name}</p>
@@ -230,12 +225,12 @@ export default function AdminPage() {
                     </div>
                 )}
 
-                {/* TAB: БАЙКИ */}
                 {activeTab === 'bikes' && (
                     <>
-                        <form onSubmit={addScooter} className="bg-[#11141b] p-8 rounded-[2.5rem] mb-16 border border-white/5 shadow-xl grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div className="md:col-span-2">
-                                <h3 className="text-sm font-bold uppercase tracking-widest text-gray-500 italic">Добавить новый байк</h3>
+                        <form onSubmit={handleSubmitScooter} className="bg-[#11141b] p-8 rounded-[2.5rem] mb-16 border border-white/5 shadow-xl grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="md:col-span-2 flex justify-between items-center">
+                                <h3 className="text-sm font-bold uppercase tracking-widest text-gray-500 italic">{editingId ? 'Редактировать байк' : 'Добавить новый байк'}</h3>
+                                {editingId && <button type="button" onClick={cancelEdit} className="text-red-500 text-[10px] font-bold uppercase tracking-widest">Отмена ❌</button>}
                             </div>
                             <input className="bg-black/40 p-4 rounded-2xl outline-none border border-white/5 focus:border-green-500 text-white" placeholder="Модель" value={model} onChange={e => setModel(e.target.value)} required />
                             <input className="bg-black/40 p-4 rounded-2xl outline-none border border-white/5 focus:border-green-500 text-white" placeholder="WhatsApp" value={vendorPhone} onChange={e => setVendorPhone(e.target.value)} required />
@@ -246,8 +241,8 @@ export default function AdminPage() {
                             <input className="md:col-span-2 bg-black/40 p-4 rounded-2xl outline-none border border-white/5 focus:border-green-500 text-white" placeholder="Главное фото (URL)" value={image} onChange={e => setImage(e.target.value)} required />
                             <textarea className="md:col-span-2 bg-black/40 p-4 rounded-2xl outline-none border border-white/5 focus:border-green-500 text-white h-24 resize-none" placeholder="Галерея (ссылки через запятую)" value={imagesGallery} onChange={e => setImagesGallery(e.target.value)} />
                             
-                            <button type="submit" className="md:col-span-2 bg-green-600 hover:bg-green-500 p-5 rounded-2xl font-black uppercase text-[11px] tracking-widest transition-all text-white">
-                                Опубликовать байк
+                            <button type="submit" className={`md:col-span-2 p-5 rounded-2xl font-black uppercase text-[11px] tracking-widest transition-all text-white ${editingId ? 'bg-blue-600 hover:bg-blue-500' : 'bg-green-600 hover:bg-green-500'}`}>
+                                {editingId ? 'Сохранить изменения' : 'Опубликовать байк'}
                             </button>
                         </form>
 
@@ -258,18 +253,18 @@ export default function AdminPage() {
                                         <img src={s.image} className="w-12 h-12 object-cover rounded-xl shadow-lg" alt="" />
                                         <p className="font-bold uppercase italic text-sm">{s.model}</p>
                                     </div>
-                                    <button onClick={() => deleteScooter(s.id)} className="text-red-500 text-[10px] font-bold uppercase border border-red-500/20 px-6 py-2 rounded-xl hover:bg-red-500 hover:text-white transition-all">Удалить</button>
+                                    <div className="flex gap-2">
+                                        <button onClick={() => startEdit(s)} className="text-blue-500 text-[10px] font-bold uppercase border border-blue-500/20 px-4 py-2 rounded-xl hover:bg-blue-500 hover:text-white transition-all">Правка</button>
+                                        <button onClick={() => deleteScooter(s.id)} className="text-red-500 text-[10px] font-bold uppercase border border-red-500/20 px-4 py-2 rounded-xl hover:bg-red-500 hover:text-white transition-all">Удалить</button>
+                                    </div>
                                 </div>
                             ))}
                         </div>
                     </>
                 )}
 
-                {/* Footer Exit */}
                 <div className="mt-20 text-center">
-                    <button onClick={() => setIsAuthenticated(false)} className="text-[10px] font-black uppercase text-gray-600 hover:text-red-500 transition-all tracking-[0.3em]">
-                        Logout System _
-                    </button>
+                    <button onClick={() => setIsAuthenticated(false)} className="text-[10px] font-black uppercase text-gray-600 hover:text-red-500 transition-all tracking-[0.3em]">Logout System _</button>
                 </div>
             </div>
         </div>
