@@ -3,15 +3,26 @@ import { supabase } from '@/app/supabase';
 
 async function checkSubscription(botToken: string, userId: number) {
   try {
-    // ВАЖНО: Бот должен быть администратором канала @dragonindanang
-    const response = await fetch(`https://api.telegram.org/bot${botToken}/getChatMember?chat_id=@dragonindanang&user_id=${userId}`);
+    const response = await fetch(`https://api.telegram.org/bot${botToken}/getChatMember`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: "@dragonindanang",
+        user_id: userId
+      })
+    });
+    
     const data = await response.json();
     
-    // Если получаем ошибку (бот не админ или чат не найден), возвращаем false, чтобы показать просьбу о подписке
-    if (!data.ok) return false;
+    if (!data.ok) {
+      console.error("Telegram API Error:", data.description);
+      return false;
+    }
     
-    return ['member', 'administrator', 'creator'].includes(data.result?.status);
+    const status = data.result?.status;
+    return ['member', 'administrator', 'creator'].includes(status);
   } catch (e) {
+    console.error("Subscription check fetch error:", e);
     return false; 
   }
 }
@@ -32,17 +43,14 @@ export async function POST(req: Request) {
       const parts = text.split(' ');
       const startParam = parts.length > 1 ? parts[1] : 'direct';
 
-      // Сохраняем пользователя в Supabase
       await supabase.from('users').upsert({ 
         telegram_id: chatId, 
         referrer: startParam, 
         username: username 
       }, { onConflict: 'telegram_id' });
 
-      // Проверка подписки
       const isSubscribed = await checkSubscription(token, chatId);
 
-      // Составляем сообщение на двух языках
       let welcomeMessage = 
         "🇷🇺 **Добро пожаловать в каталог байков Дананга!**\n" +
         "Мы предоставляем качественный сервис без лишних заморочек. Выбирайте и бронируйте в один клик!\n\n" +
@@ -52,14 +60,25 @@ export async function POST(req: Request) {
         "We provide high-quality service without any hassle. Choose and book in one click!\n\n" +
         "🆘 For any questions, please contact our manager: @dragonservicesupport";
 
-      // Если не подписан, добавляем блок про группу (RU/EN)
       if (!isSubscribed) {
         welcomeMessage += "\n\n" +
           "📢 **Подпишитесь, чтобы не потеряться! / Subscribe to stay in touch:**\n" +
-          "🇷🇺 Пожалуйста, подпишитесь на наш основной канал. Это поможет нам оставаться на связи.\n" +
-          "🇬🇧 Please subscribe to our main channel. This helps us stay in touch with you.\n" +
+          "🇷🇺 Пожалуйста, подпишитесь на наш канал, чтобы не потерять связь и быть в курсе новостей.\n" +
+          "🇬🇧 Please subscribe to our channel to stay in touch and keep up with news.\n" +
           "👉 https://t.me/dragonindanang";
       }
+
+      // ИСПРАВЛЕННАЯ СТРУКТУРА КЛАВИАТУРЫ
+      const keyboard = [];
+
+      if (!isSubscribed) {
+        keyboard.push([{ text: "📢 Subscribe / Подписаться", url: "https://t.me/dragonindanang" }]);
+      }
+
+      keyboard.push([{ 
+        text: "🛵 Open Catalog / Открыть каталог", 
+        web_app: { url: "https://scooter-danang.vercel.app" } 
+      }]);
 
       await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
         method: 'POST',
@@ -69,10 +88,7 @@ export async function POST(req: Request) {
           text: welcomeMessage,
           parse_mode: "Markdown",
           reply_markup: {
-            inline_keyboard: [
-              [{ text: "📢 Subscribe / Подписаться", url: "https://t.me/dragonindanang" }],
-              [{ text: "🛵 Open Catalog / Открыть каталог", web_app: { url: "https://scooter-danang.vercel.app" } }]
-            ]
+            inline_keyboard: keyboard
           }
         }),
       });
