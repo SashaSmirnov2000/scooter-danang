@@ -78,9 +78,25 @@ export default function BikePage() {
     return Math.max(0, Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)));
   };
 
+  // Функция расчета итоговой стоимости
+  const calculateTotalOrderPrice = () => {
+    const days = totalDays();
+    if (days <= 0) return 0;
+    
+    // Чистим цену от лишних символов (точки, пробелы, буквы), оставляем только цифры
+    const cleanPrice = (p: string) => parseInt(p?.replace(/\D/g, '') || '0');
+    
+    const p1 = cleanPrice(bike.price_day);
+    const p2 = bike.price_2days ? cleanPrice(bike.price_2days) : p1;
+
+    const finalDayPrice = days >= 2 ? p2 : p1;
+    return (finalDayPrice * days).toLocaleString('de-DE'); // Форматируем обратно с точками
+  };
+
   const handleBooking = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (totalDays() <= 0) {
+    const days = totalDays();
+    if (days <= 0) {
       alert(lang === 'ru' ? "Выберите корректные даты" : "Select valid dates");
       return;
     }
@@ -95,7 +111,8 @@ export default function BikePage() {
       end_date: endDate,
       client_username: user?.username || 'web_user',
       telegram_id: user?.id,
-      referrer: ref 
+      referrer: ref,
+      total_price: calculateTotalOrderPrice() + " VND" // Добавляем цену заказа в таблицу
     };
 
     try {
@@ -116,7 +133,7 @@ export default function BikePage() {
 
   const t = {
     ru: { 
-      back: "← Назад", day: "сутки", month: "месяц", 
+      back: "← Назад", day: "1 сутки", month: "от 2 суток", 
       btn: "Забронировать",
       helmets: "В комплекте 2 шлема",
       clean: "Идеально чистое состояние",
@@ -124,12 +141,12 @@ export default function BikePage() {
       transmission: "Трансмиссия",
       modalSub: "Даты аренды", submitBtn: "Отправить запрос",
       successTitle: "Запрос принят", 
-      successText: "Мы уже связываемся с владельцем для уточнения наличия. Вы можете закрыть приложение, мы пришлем уведомление в Telegram.",
-      workingHours: "График обработки заявок: 10:00 — 22:00",
-      close: "Закрыть", labelStart: "Начало", labelEnd: "Конец", total: "Дней:"
+      successText: "Мы уже связываемся с владельцем. Вы можете закрыть приложение, мы пришлем уведомление в Telegram.",
+      workingHours: "График: 10:00 — 22:00",
+      close: "Закрыть", labelStart: "Начало", labelEnd: "Конец", total: "Дней:", sum: "Итого:"
     },
     en: { 
-      back: "← Back", day: "day", month: "month", 
+      back: "← Back", day: "1 day", month: "2+ days", 
       btn: "Book Now",
       helmets: "2 helmets included",
       clean: "Perfectly clean condition",
@@ -137,9 +154,9 @@ export default function BikePage() {
       transmission: "Transmission",
       modalSub: "Rental dates", submitBtn: "Send Request",
       successTitle: "Request Sent", 
-      successText: "We are contacting the owner to confirm availability. You can close the app; we will notify you via Telegram.",
-      workingHours: "Processing hours: 10:00 AM — 10:00 PM",
-      close: "Close", labelStart: "Start", labelEnd: "End", total: "Days:"
+      successText: "We are contacting the owner. You can close the app; we will notify you via Telegram.",
+      workingHours: "Hours: 10:00 AM — 10:00 PM",
+      close: "Close", labelStart: "Start", labelEnd: "End", total: "Days:", sum: "Total:"
     }
   };
 
@@ -179,7 +196,6 @@ export default function BikePage() {
         </div>
 
         <div className="bg-[#0f1117] rounded-[2.5rem] border border-white/5 p-6 mb-6">
-          {/* Status Labels */}
           <div className="flex flex-wrap gap-2 mb-6">
             <div className="flex items-center gap-2 bg-white/5 px-3 py-1.5 rounded-lg border border-white/10 text-gray-300 text-[9px] font-black uppercase tracking-widest">
                 <span className="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]"></span> 
@@ -191,7 +207,6 @@ export default function BikePage() {
             </div>
           </div>
 
-          {/* Engine & Transmission */}
           <div className="flex gap-2 mb-8">
             <div className="bg-green-500/10 px-4 py-2 rounded-xl border border-green-500/20">
                 <p className="text-[7px] text-green-500/60 uppercase font-black mb-0.5">Engine</p>
@@ -217,13 +232,13 @@ export default function BikePage() {
             </div>
             <div className="bg-green-500/5 p-4 rounded-2xl border border-green-500/10 text-center">
                 <p className="text-[8px] text-green-500/70 uppercase font-bold mb-1 tracking-widest">{t[lang].month}</p>
-                <p className="text-lg font-black text-green-400 italic">{bike.price_month}</p>
+                <p className="text-lg font-black text-green-400 italic">{bike.price_2days || bike.price_day}</p>
             </div>
           </div>
 
           <button 
             onClick={() => {setShowModal(true); setIsSubmitted(false);}} 
-            className="w-full bg-green-600 py-4 rounded-2xl font-black text-[11px] uppercase tracking-widest text-white shadow-lg shadow-green-900/30 active:scale-[0.98] transition-all"
+            className="w-full bg-green-600 py-4 rounded-2xl font-black text-[11px] uppercase tracking-widest text-white shadow-lg active:scale-[0.98] transition-all"
           >
             {t[lang].btn}
           </button>
@@ -255,17 +270,21 @@ export default function BikePage() {
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between mb-8 px-2">
-                  {totalDays() > 0 ? (
-                    <div className="px-3 py-1.5 bg-green-500/10 rounded-lg border border-green-500/20 text-[10px] text-green-500 font-black tracking-widest">
-                       {t[lang].total} {totalDays()}
-                    </div>
-                  ) : <div></div>}
+                {/* Расчет итоговой цены */}
+                <div className="bg-white/5 rounded-2xl p-4 mb-8 border border-white/5 flex items-center justify-between">
+                   <div>
+                      <p className="text-[8px] text-gray-500 uppercase font-black">{t[lang].total}</p>
+                      <p className="text-lg font-black">{totalDays()} d</p>
+                   </div>
+                   <div className="text-right">
+                      <p className="text-[8px] text-green-500 uppercase font-black">{t[lang].sum}</p>
+                      <p className="text-lg font-black text-green-500 tracking-tighter">{calculateTotalOrderPrice()} VND</p>
+                   </div>
                 </div>
 
                 <div className="flex gap-2">
                   <button type="button" onClick={() => setShowModal(false)} className="flex-1 bg-white/5 py-4 rounded-xl text-[10px] font-black uppercase text-gray-400 border border-white/5 active:scale-95 transition-all">{t[lang].close}</button>
-                  <button type="submit" disabled={isSubmitting} className="flex-[2] bg-green-600 py-4 rounded-xl text-[10px] font-black uppercase text-white shadow-lg shadow-green-900/40 active:scale-95 transition-all">
+                  <button type="submit" disabled={isSubmitting} className="flex-[2] bg-green-600 py-4 rounded-xl text-[10px] font-black uppercase text-white shadow-lg active:scale-95 transition-all">
                     {isSubmitting ? '...' : t[lang].submitBtn}
                   </button>
                 </div>
