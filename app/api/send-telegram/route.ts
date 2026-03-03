@@ -16,6 +16,7 @@ export async function POST(req: Request) {
 
     if (!botToken) return NextResponse.json({ error: "No Token" }, { status: 500 });
 
+    // --- 0. ЛОГИКА CALLBACK (Кнопки) ---
     if (body.callback_query) {
       const callbackId = body.callback_query.id;
       const callbackData = body.callback_query.data;
@@ -40,7 +41,7 @@ export async function POST(req: Request) {
           headers: { 'Content-Type': 'application/json' }, 
           body: JSON.stringify({
             chat_id: chatId, message_id: messageId,
-            text: "❌ Ваше бронирование отменено.\nРешили выбрать другой байк? Заходите в каталог.\n\n---\n❌ Your booking has been cancelled.\nDecided to choose another bike? Visit the catalog.",
+            text: "❌ **Ваше бронирование отменено.**\nРешили выбрать другой байк? Заходите в каталог.\n\n---\n❌ **Your booking has been cancelled.**\nDecided to choose another bike? Visit the catalog.",
             parse_mode: "Markdown",
             reply_markup: { inline_keyboard: [[{ text: "🛵 Открыть каталог / Open Catalog", web_app: { url: "https://scooter-danang.vercel.app" } }]] }
           })
@@ -143,6 +144,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true });
     }
 
+    // --- 1. ЛОГИКА СООБЩЕНИЙ ---
     if (body.message) {
       const chatId = body.message.chat.id;
       const text = body.message.text || '';
@@ -207,21 +209,24 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true });
     }
 
+    // --- 2. ЛОГИКА НОВОГО ЗАКАЗА ---
     const { bike_model, start_date, end_date, client_username, telegram_id, bike_id, total_price } = body;
     if (bike_model && telegram_id) {
       const { data: newOrder } = await supabase.from('bookings').insert([{
         bike_id, bike_model, start_date, end_date, client_username, telegram_id, status: 'pending', total_price
       }]).select().single();
 
+      // Уведомление админу (на русском + сумма)
       await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           chat_id: MY_ADMIN_ID, 
-          text: `🔔 **НОВЫЙ ЗАКАЗ №${newOrder?.id}**\n\n**Байк:** ${bike_model}\n**Даты:** ${start_date} — ${end_date}\n**Сумма:** ${total_price}\n**Клиент:** @${client_username}`, 
+          text: `🔔 **НОВЫЙ ЗАКАЗ №${newOrder?.id}**\n\n**Байк:** ${bike_model}\n**Даты:** ${start_date} — ${end_date}\n**Сумма:** ${total_price || 'Не указана'}\n**Клиент:** @${client_username}`, 
           reply_markup: { inline_keyboard: [[{ text: "⚙️ Управлять заказом", callback_data: `manage_${newOrder?.id}` }]] }
         }),
       });
 
+      // Уведомление клиенту (RU/EN)
       const bookingMessage = `✅ **Заявка принята! / Order received!**\n\nМы уже уточняем наличие **${bike_model}**. Мы сами пришлем вам уведомление.\n\n---\n🕒 **Время обработки / Processing hours:** 10:00 — 22:00 (Local time)\n\n🤝 **Менеджер / Support:** @dragonservicesupport`;
       await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },

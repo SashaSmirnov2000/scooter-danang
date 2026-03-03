@@ -7,7 +7,7 @@ async function checkSubscription(botToken: string, userId: number) {
     const response = await fetch(`https://api.telegram.org/bot${botToken}/getChatMember?chat_id=@dragonindanang&user_id=${userId}`);
     const data = await response.json();
     
-    // Если получаем ошибку, что чат не найден или бот не админ, по умолчанию просим подписаться (false)
+    // Если получаем ошибку (бот не админ или чат не найден), возвращаем false, чтобы показать просьбу о подписке
     if (!data.ok) return false;
     
     return ['member', 'administrator', 'creator'].includes(data.result?.status);
@@ -32,17 +32,17 @@ export async function POST(req: Request) {
       const parts = text.split(' ');
       const startParam = parts.length > 1 ? parts[1] : 'direct';
 
-      // Сохраняем/обновляем пользователя
+      // Сохраняем пользователя в Supabase
       await supabase.from('users').upsert({ 
         telegram_id: chatId, 
         referrer: startParam, 
         username: username 
       }, { onConflict: 'telegram_id' });
 
-      // Проверяем подписку
+      // Проверка подписки
       const isSubscribed = await checkSubscription(token, chatId);
 
-      // Основной текст
+      // Составляем сообщение на двух языках
       let welcomeMessage = 
         "🇷🇺 **Добро пожаловать в каталог байков Дананга!**\n" +
         "Мы предоставляем качественный сервис без лишних заморочек. Выбирайте и бронируйте в один клик!\n\n" +
@@ -52,12 +52,12 @@ export async function POST(req: Request) {
         "We provide high-quality service without any hassle. Choose and book in one click!\n\n" +
         "🆘 For any questions, please contact our manager: @dragonservicesupport";
 
-      // Если не подписан — добавляем текст
+      // Если не подписан, добавляем блок про группу (RU/EN)
       if (!isSubscribed) {
         welcomeMessage += "\n\n" +
-          "⚠️ **Внимание / Attention**\n\n" +
-          "🇷🇺 Пожалуйста, подпишитесь на наш канал, чтобы не потерять связь и следить за обновлениями:\n" +
-          "🇬🇧 Please subscribe to our channel to stay in touch and follow updates:\n" +
+          "📢 **Подпишитесь, чтобы не потеряться! / Subscribe to stay in touch:**\n" +
+          "🇷🇺 Пожалуйста, подпишитесь на наш основной канал. Это поможет нам оставаться на связи.\n" +
+          "🇬🇧 Please subscribe to our main channel. This helps us stay in touch with you.\n" +
           "👉 https://t.me/dragonindanang";
       }
 
