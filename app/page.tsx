@@ -9,7 +9,6 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [ref, setRef] = useState<string>('');
 
-  // Состояния для бронирования
   const [selectedBike, setSelectedBike] = useState<any>(null);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -17,36 +16,24 @@ export default function Home() {
   const [isSubmitted, setIsSubmitted] = useState(false);
 
   useEffect(() => {
-    // 1. Загрузка языка
     const savedLang = localStorage.getItem('userLang') as 'ru' | 'en';
     if (savedLang) setLang(savedLang);
 
-    // 2. ФИНАЛЬНАЯ ЛОГИКА РЕФЕРАЛА (Тройная проверка)
     const initRefLogic = () => {
       const tg = (window as any).Telegram?.WebApp;
       const urlParams = new URLSearchParams(window.location.search);
-      
-      // А. Проверка URL (для обычных браузеров)
       const refFromUrl = urlParams.get('tgWebAppStartParam');
-      
-      // Б. Проверка стандартного поля Telegram
       const refFromTgUnsafe = tg?.initDataUnsafe?.start_param;
-
-      // В. ГЛУБОКИЙ ПАРСИНГ (из сырых данных initData)
       let refFromRaw = null;
       if (tg?.initData) {
         try {
           const rawParams = new URLSearchParams(tg.initData);
           const startParam = rawParams.get('start_param');
           if (startParam) refFromRaw = startParam;
-        } catch (e) {
-          console.error("Error parsing initData", e);
-        }
+        } catch (e) { console.error(e); }
       }
-
       const savedRef = localStorage.getItem('referrer');
       const activeRef = refFromUrl || refFromTgUnsafe || refFromRaw;
-
       if (activeRef) {
         setRef(activeRef);
         localStorage.setItem('referrer', activeRef);
@@ -58,20 +45,17 @@ export default function Home() {
       return false;
     };
 
-    // Запускаем серию проверок (Telegram может загрузить данные не сразу)
     initRefLogic();
-    const interval = setInterval(() => {
-      if (initRefLogic()) clearInterval(interval);
-    }, 500);
-    setTimeout(() => clearInterval(interval), 3000); // Проверяем в течение 3 секунд
+    const interval = setInterval(() => { if (initRefLogic()) clearInterval(interval); }, 500);
+    setTimeout(() => clearInterval(interval), 3000);
 
     const tg = (window as any).Telegram?.WebApp;
     if (tg) {
       tg.ready();
       tg.expand();
+      if (tg.BackgroundColor) tg.setHeaderColor('#05070a');
     }
 
-    // 3. Загрузка байков
     async function loadBikes() {
       const { data, error } = await supabase
         .from('scooters') 
@@ -81,7 +65,6 @@ export default function Home() {
       setLoading(false);
     }
     loadBikes();
-
     return () => clearInterval(interval);
   }, []);
 
@@ -105,7 +88,6 @@ export default function Home() {
         alert(lang === 'ru' ? "Дата окончания должна быть позже даты начала" : "End date must be after start date");
         return;
     }
-
     setIsSubmitting(true);
     const tg = (window as any).Telegram?.WebApp;
     const user = tg?.initDataUnsafe?.user;
@@ -117,19 +99,17 @@ export default function Home() {
       end_date: endDate,
       client_username: user?.username || 'web_user',
       telegram_id: user?.id,
-      referrer: ref // Теперь передается гарантированно
+      referrer: ref
     };
 
     try {
       const { error: dbError } = await supabase.from('bookings').insert([bookingData]);
       if (dbError) throw dbError;
-
       await fetch('/api/send-telegram', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(bookingData),
       });
-
       setIsSubmitted(true);
     } catch (error: any) {
       alert("Error: " + error.message);
@@ -140,82 +120,94 @@ export default function Home() {
 
   const t = {
     ru: { 
-      title: "Аренда скутеров", sub: "DRAGON BIKE DANANG", location: "Дананг, Вьетнам",
-      btn: "Забронировать", day: "в сутки", month: "в месяц",
-      modalTitle: "Бронирование", modalSub: "Укажите даты, мы подтвердим наличие",
-      startDate: "Дата начала", endDate: "Дата окончания", submitBtn: "Отправить запрос",
-      successTitle: "Заявка принята!", successText: "Мы проверяем байк. Пожалуйста, ожидайте. Вы можете закрыть Mini App, мы пришлем вам уведомление.",
-      close: "Закрыть", total: "Итого дней:"
+      title: "Аренда скутеров", sub: "DRAGON BIKE", location: "Дананг, Вьетнам",
+      btn: "Забронировать", day: "сутки", month: "месяц",
+      modalTitle: "Бронирование", modalSub: "Укажите даты поездки",
+      startDate: "Начало", endDate: "Конец", submitBtn: "Запросить бронь",
+      successTitle: "Заявка отправлена!", successText: "Мы скоро свяжемся с вами в Telegram для подтверждения.",
+      close: "Закрыть", total: "Дней:"
     },
     en: { 
-      title: "Scooter Rental", sub: "DRAGON BIKE DANANG", location: "Da Nang, Vietnam",
-      btn: "Book Now", day: "per day", month: "per month",
-      modalTitle: "Booking", modalSub: "Specify dates, we will confirm",
-      startDate: "Start Date", endDate: "End Date", submitBtn: "Send Request",
-      successTitle: "Request Sent!", successText: "We are checking availability. Please wait. You can close the Mini App, we will notify you.",
-      close: "Close", total: "Total days:"
+      title: "Scooter Rental", sub: "DRAGON BIKE", location: "Da Nang, Vietnam",
+      btn: "Book Now", day: "day", month: "month",
+      modalTitle: "Booking", modalSub: "Select your dates",
+      startDate: "Start", endDate: "End", submitBtn: "Request Booking",
+      successTitle: "Request Sent!", successText: "We will contact you on Telegram shortly to confirm.",
+      close: "Close", total: "Days:"
     }
   };
 
   return (
     <main className="bg-[#05070a] min-h-screen text-white font-sans flex flex-col overflow-x-hidden selection:bg-green-500/30">
       
-      <nav className="fixed top-0 w-full z-[100] bg-[#05070a]/80 backdrop-blur-xl border-b border-white/5 h-20 flex items-center justify-between px-8">
-        <div className="flex items-center gap-3 text-left">
-          <div className="w-10 h-10 bg-green-500 rounded-xl flex items-center justify-center shadow-[0_0_20px_rgba(34,197,94,0.4)] text-xl">🐉</div>
+      {/* HEADER */}
+      <nav className="fixed top-0 w-full z-[100] bg-[#05070a]/90 backdrop-blur-md border-b border-white/5 h-16 flex items-center justify-between px-5">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 bg-green-500 rounded-lg flex items-center justify-center shadow-[0_0_15px_rgba(34,197,94,0.3)] text-lg">🐉</div>
           <div className="flex flex-col">
-            <span className="font-black text-xl tracking-tight uppercase leading-none">Dragon</span>
-            <span className="text-[10px] text-green-500 font-bold tracking-[0.2em] uppercase">Bike</span>
+            <span className="font-black text-sm tracking-tighter uppercase leading-none">Dragon Bike</span>
+            <span className="text-[8px] text-green-500 font-bold tracking-[0.2em] uppercase">Danang</span>
           </div>
         </div>
-        <button onClick={toggleLang} className="bg-white/5 border border-white/10 px-5 py-2 rounded-2xl text-[11px] font-bold uppercase active:scale-95 transition-all text-white">
-          {lang === 'ru' ? 'English' : 'Русский'}
+        <button onClick={toggleLang} className="bg-white/5 border border-white/10 px-4 py-1.5 rounded-xl text-[10px] font-bold uppercase transition-all active:scale-90">
+          {lang === 'ru' ? 'EN' : 'RU'}
         </button>
       </nav>
 
-      <section className="relative h-[45vh] flex items-center justify-center text-center px-6 pt-16">
-        <div className="absolute inset-0 z-0 opacity-30">
-          <img src="https://static.vinwonders.com/2022/12/Dragon-Bridge-thumb.jpg" className="w-full h-full object-cover" alt="Bridge" />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#05070a] via-[#05070a]/40 to-transparent" />
+      {/* HERO */}
+      <section className="relative h-[35vh] flex items-center justify-center text-center px-6 pt-16">
+        <div className="absolute inset-0 z-0">
+          <img src="https://static.vinwonders.com/2022/12/Dragon-Bridge-thumb.jpg" className="w-full h-full object-cover opacity-40" alt="Bridge" />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#05070a] via-[#05070a]/60 to-transparent" />
         </div>
-        <div className="relative z-10">
-          <h1 className="text-4xl font-bold mb-2 tracking-tight uppercase italic">{t[lang].title}</h1>
-          <p className="text-gray-400 text-sm tracking-wide">{t[lang].location}</p>
+        <div className="relative z-10 mt-10">
+          <h1 className="text-3xl font-black mb-1 tracking-tight uppercase italic drop-shadow-2xl">{t[lang].title}</h1>
+          <div className="inline-block px-3 py-1 bg-green-500/10 border border-green-500/20 rounded-full">
+            <p className="text-green-500 text-[10px] font-bold tracking-widest uppercase">{t[lang].location}</p>
+          </div>
         </div>
       </section>
 
-      <section className="max-w-7xl mx-auto px-6 pb-24 -mt-10 relative z-20 w-full">
+      {/* GRID */}
+      <section className="max-w-7xl mx-auto px-4 pb-24 -mt-12 relative z-20 w-full">
         {loading ? (
-          <div className="flex justify-center py-20"><div className="w-10 h-10 border-2 border-green-500 border-t-transparent rounded-full animate-spin" /></div>
+          <div className="flex justify-center py-20"><div className="w-8 h-8 border-2 border-green-500 border-t-transparent rounded-full animate-spin" /></div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {bikes.map((s) => (
-              <div key={s.id} className="bg-[#11141b] rounded-[2.5rem] border border-white/5 overflow-hidden transition-all hover:border-green-500/40 group">
-                <Link href={`/bike/${s.id}`} className="h-56 bg-white/5 p-6 flex items-center justify-center relative block overflow-hidden">
-                  <img src={s.image} className="max-h-full object-contain transition-transform duration-500 group-hover:scale-110" alt={s.model} />
-                  <div className="absolute top-4 right-4 bg-black/60 px-3 py-1 rounded-full text-[10px] font-bold border border-white/5 tracking-widest">{s.year}</div>
+              <div key={s.id} className="bg-[#0f1117] rounded-[2rem] border border-white/5 overflow-hidden flex flex-col shadow-xl">
+                {/* 4:3 Image Container */}
+                <Link href={`/bike/${s.id}`} className="relative aspect-[4/3] w-full overflow-hidden block">
+                  <img 
+                    src={s.image} 
+                    className="w-full h-full object-cover transition-transform duration-700 hover:scale-110" 
+                    alt={s.model} 
+                  />
+                  <div className="absolute top-3 left-3 bg-black/50 backdrop-blur-md px-3 py-1 rounded-lg text-[9px] font-black border border-white/10 tracking-widest uppercase">
+                    {s.year}
+                  </div>
                 </Link>
                 
-                <div className="p-8 text-left">
-                  <Link href={`/bike/${s.id}`}>
-                    <h3 className="text-2xl font-bold mb-1 uppercase tracking-tight group-hover:text-green-500 transition-colors cursor-pointer">{s.model}</h3>
-                  </Link>
-                  <p className="text-gray-500 text-[10px] font-bold tracking-[0.2em] uppercase mb-6">{s.engine}cc • Automatic</p>
+                <div className="p-5 flex flex-col flex-grow">
+                  <div className="flex justify-between items-start mb-2">
+                    <h3 className="text-xl font-bold uppercase italic tracking-tighter">{s.model}</h3>
+                    <span className="text-[9px] text-gray-500 font-bold uppercase bg-white/5 px-2 py-1 rounded-md">{s.engine}cc</span>
+                  </div>
                   
-                  <div className="flex items-center justify-between bg-black/40 rounded-2xl p-5 border border-white/5 mb-6 text-left">
-                    <div>
-                      <p className="text-[9px] text-gray-500 uppercase font-black mb-1">{t[lang].day}</p>
-                      <span className="text-xl font-bold text-white tracking-tight">{s.price_day}</span>
+                  <div className="grid grid-cols-2 gap-3 mb-5">
+                    <div className="bg-black/30 rounded-xl p-3 border border-white/5">
+                      <p className="text-[8px] text-gray-500 uppercase font-bold mb-0.5">{t[lang].day}</p>
+                      <p className="text-sm font-black text-white">{s.price_day}</p>
                     </div>
-                    <div className="text-right">
-                      <p className="text-[9px] text-green-500 uppercase font-black mb-1">{t[lang].month}</p>
-                      <span className="text-xl font-bold text-green-400 tracking-tight">{s.price_month}</span>
+                    <div className="bg-green-500/5 rounded-xl p-3 border border-green-500/10">
+                      <p className="text-[8px] text-green-500/70 uppercase font-bold mb-0.5">{t[lang].month}</p>
+                      <p className="text-sm font-black text-green-400">{s.price_month}</p>
                     </div>
                   </div>
                   
                   <button 
                     onClick={() => {setSelectedBike(s); setIsSubmitted(false);}}
-                    className="w-full bg-green-600 hover:bg-green-500 py-4 rounded-2xl font-bold text-[10px] uppercase text-center transition-all shadow-lg shadow-green-900/20 active:scale-95 text-white tracking-widest"
+                    className="w-full bg-green-600 active:bg-green-700 py-3.5 rounded-xl font-black text-[10px] uppercase transition-all active:scale-[0.97] text-white tracking-widest shadow-lg shadow-green-900/20"
                   >
                     {t[lang].btn}
                   </button>
@@ -226,66 +218,70 @@ export default function Home() {
         )}
       </section>
 
+      {/* MODAL (Optimized for 4:3) */}
       {selectedBike && (
-        <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/90 backdrop-blur-md" onClick={() => setSelectedBike(null)} />
-          <div className="relative w-full max-w-md bg-[#11141b] border border-white/10 rounded-[2.5rem] p-7 shadow-2xl animate-in slide-in-from-bottom duration-300">
+        <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center">
+          <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setSelectedBike(null)} />
+          <div className="relative w-full max-w-lg bg-[#0f1117] border-t border-white/10 sm:border sm:rounded-[2.5rem] p-6 rounded-t-[2.5rem] shadow-2xl animate-in slide-in-from-bottom duration-300 overflow-y-auto max-h-[90vh]">
             {!isSubmitted ? (
-              <form onSubmit={handleBooking} className="text-left">
-                <div className="w-full h-44 bg-white/5 rounded-[2rem] mb-6 flex items-center justify-center overflow-hidden border border-white/5">
-                  <img src={selectedBike.image} className="max-h-full object-contain p-4" alt={selectedBike.model} />
+              <form onSubmit={handleBooking}>
+                <div className="relative aspect-[4/3] w-full rounded-2xl overflow-hidden mb-6 border border-white/10 shadow-inner">
+                  <img src={selectedBike.image} className="w-full h-full object-cover" alt={selectedBike.model} />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                  <h2 className="absolute bottom-4 left-5 text-2xl font-black uppercase italic text-white tracking-tighter">{selectedBike.model}</h2>
                 </div>
-                <h2 className="text-2xl font-bold mb-1 uppercase italic tracking-tight text-white">{selectedBike.model}</h2>
-                <p className="text-gray-500 text-[10px] uppercase font-bold tracking-widest mb-6">{t[lang].modalSub}</p>
-                
-                <div className="space-y-4">
+
+                <div className="grid grid-cols-2 gap-4 mb-6">
                   <div>
-                    <label className="text-[9px] text-gray-400 uppercase font-black mb-1.5 ml-4 block">{t[lang].startDate}</label>
+                    <label className="text-[9px] text-gray-500 uppercase font-black mb-2 ml-1 block">{t[lang].startDate}</label>
                     <input required type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} 
-                    className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-white outline-none focus:border-green-500 transition-all text-sm appearance-none" style={{ colorScheme: 'dark' }} />
+                    className="w-full bg-white/5 border border-white/10 rounded-xl p-3.5 text-white outline-none focus:border-green-500 transition-all text-xs" style={{ colorScheme: 'dark' }} />
                   </div>
                   <div>
-                    <label className="text-[9px] text-gray-400 uppercase font-black mb-1.5 ml-4 block">{t[lang].endDate}</label>
+                    <label className="text-[9px] text-gray-500 uppercase font-black mb-2 ml-1 block">{t[lang].endDate}</label>
                     <input required type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} 
-                    className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-white outline-none focus:border-green-500 transition-all text-sm appearance-none" style={{ colorScheme: 'dark' }} />
+                    className="w-full bg-white/5 border border-white/10 rounded-xl p-3.5 text-white outline-none focus:border-green-500 transition-all text-xs" style={{ colorScheme: 'dark' }} />
                   </div>
                 </div>
 
-                <div className="mt-4 flex flex-wrap gap-2 items-center">
-                    {totalDays() > 0 && (
-                        <div className="px-4 py-2 bg-white/5 rounded-xl border border-white/5 text-[10px]">
-                            <span className="text-gray-400 uppercase font-bold">{t[lang].total} </span>
-                            <span className="text-green-500 font-black">{totalDays()}</span>
-                        </div>
-                    )}
-                    {ref && (
-                        <div className="px-4 py-2 bg-green-500/10 rounded-xl border border-green-500/20 text-[9px] text-green-400 font-bold uppercase tracking-widest animate-pulse">
-                            🔗 Ref: {ref}
-                        </div>
-                    )}
+                <div className="flex items-center justify-between mb-8 px-1">
+                    <div className="flex gap-2">
+                        {totalDays() > 0 && (
+                            <div className="px-3 py-1.5 bg-green-500/10 rounded-lg border border-green-500/20 text-[10px]">
+                                <span className="text-green-500 font-black">{t[lang].total} {totalDays()}</span>
+                            </div>
+                        )}
+                        {ref && (
+                            <div className="px-3 py-1.5 bg-white/5 rounded-lg border border-white/10 text-[9px] text-gray-400 font-bold uppercase tracking-tighter">
+                                Ref: {ref}
+                            </div>
+                        )}
+                    </div>
                 </div>
 
-                <div className="flex gap-3 mt-8">
-                  <button type="button" onClick={() => setSelectedBike(null)} className="flex-1 bg-white/5 py-4 rounded-2xl text-[10px] font-bold uppercase border border-white/10 text-white tracking-wider">{t[lang].close}</button>
-                  <button type="submit" disabled={isSubmitting} className="flex-[2.2] bg-green-600 py-4 rounded-2xl text-[10px] font-bold uppercase shadow-lg shadow-green-900/40 text-white tracking-widest">
+                <div className="flex gap-3">
+                  <button type="button" onClick={() => setSelectedBike(null)} className="flex-1 bg-white/5 py-4 rounded-xl text-[10px] font-black uppercase border border-white/10 text-white">{t[lang].close}</button>
+                  <button type="submit" disabled={isSubmitting} className="flex-[2] bg-green-600 py-4 rounded-xl text-[10px] font-black uppercase text-white shadow-lg shadow-green-900/30 active:scale-95 disabled:opacity-50">
                     {isSubmitting ? '...' : t[lang].submitBtn}
                   </button>
                 </div>
               </form>
             ) : (
-              <div className="text-center py-8">
-                <div className="w-20 h-20 bg-green-500/10 border border-green-500/30 rounded-full flex items-center justify-center mx-auto mb-6"><span className="text-3xl text-green-500">✓</span></div>
-                <h2 className="text-2xl font-bold mb-3 uppercase italic tracking-tight text-white">{t[lang].successTitle}</h2>
-                <p className="text-gray-400 text-xs font-medium mb-10 leading-relaxed px-4">{t[lang].successText}</p>
-                <button onClick={() => setSelectedBike(null)} className="w-full bg-white/5 border border-white/10 py-4 rounded-2xl text-[10px] font-bold uppercase text-white tracking-widest">{t[lang].close}</button>
+              <div className="text-center py-10">
+                <div className="w-16 h-16 bg-green-500/20 border border-green-500/30 rounded-full flex items-center justify-center mx-auto mb-6">
+                    <span className="text-2xl text-green-500">✓</span>
+                </div>
+                <h2 className="text-xl font-black mb-3 uppercase italic tracking-tight">{t[lang].successTitle}</h2>
+                <p className="text-gray-400 text-[11px] font-medium mb-10 leading-relaxed px-6">{t[lang].successText}</p>
+                <button onClick={() => setSelectedBike(null)} className="w-full bg-white/5 border border-white/10 py-4 rounded-xl text-[10px] font-black uppercase text-white">{t[lang].close}</button>
               </div>
             )}
           </div>
         </div>
       )}
 
-      <footer className="w-full py-12 bg-[#05070a] text-center border-t border-white/5 mt-auto">
-        <p className="text-[9px] text-gray-700 font-bold uppercase tracking-[0.3em]">Dragon Bike Danang • 2026</p>
+      <footer className="w-full py-8 bg-[#05070a] text-center border-t border-white/5 mt-auto">
+        <p className="text-[8px] text-gray-600 font-bold uppercase tracking-[0.4em]">Dragon Bike Danang • 2026</p>
       </footer>
     </main>
   );
