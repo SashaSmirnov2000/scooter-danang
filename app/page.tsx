@@ -121,19 +121,19 @@ export default function Home() {
   const t = {
     ru: { 
       title: "Аренда скутеров", sub: "DRAGON BIKE", location: "Дананг, Вьетнам",
-      btn: "Забронировать", day: "сутки", month: "месяц",
+      btn: "Узнать подробнее", day: "сутки", month: "месяц",
       modalTitle: "Бронирование", modalSub: "Даты аренды",
       startDate: "Начало", endDate: "Конец", submitBtn: "Отправить запрос",
       successTitle: "Готово!", successText: "Мы скоро ответим в Telegram.",
-      close: "Закрыть", total: "Дней:"
+      close: "Закрыть", total: "Дней:", cc: "куб.см"
     },
     en: { 
       title: "Scooter Rental", sub: "DRAGON BIKE", location: "Da Nang",
-      btn: "Book Now", day: "day", month: "month",
+      btn: "Details", day: "day", month: "month",
       modalTitle: "Booking", modalSub: "Select dates",
       startDate: "Start", endDate: "End", submitBtn: "Send Request",
       successTitle: "Sent!", successText: "We've received your request.",
-      close: "Close", total: "Days:"
+      close: "Close", total: "Days:", cc: "cc"
     }
   };
 
@@ -166,7 +166,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* GRID (Vertical 3:4 aspect) */}
+      {/* GRID */}
       <section className="max-w-7xl mx-auto px-4 pb-20 relative z-20 w-full">
         {loading ? (
           <div className="flex justify-center py-20"><div className="w-8 h-8 border-2 border-green-500 border-t-transparent rounded-full animate-spin" /></div>
@@ -174,15 +174,23 @@ export default function Home() {
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {bikes.map((s) => (
               <div key={s.id} className="bg-[#0f1117] rounded-3xl border border-white/5 overflow-hidden flex flex-col shadow-xl">
-                {/* 3:4 Vertical Aspect for iPhone Photos */}
-                <Link href={`/bike/${s.id}`} className="relative aspect-[3/4] w-full overflow-hidden block">
+                
+                {/* Image Container */}
+                <Link href={`/bike/${s.id}`} className="relative aspect-[3/4] w-full overflow-hidden block group">
                   <img 
                     src={s.image} 
-                    className="w-full h-full object-cover" 
+                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" 
                     alt={s.model} 
                   />
-                  <div className="absolute top-2 left-2 bg-black/60 backdrop-blur-md px-2 py-1 rounded-lg text-[8px] font-bold border border-white/10 uppercase">
-                    {s.year}
+                  
+                  {/* Надписи над фотографией */}
+                  <div className="absolute top-2 left-2 flex flex-col gap-1.5">
+                    <div className="bg-black/60 backdrop-blur-md px-2 py-1 rounded-lg text-[8px] font-black border border-white/10 uppercase tracking-widest text-white">
+                      {s.transmission}
+                    </div>
+                    <div className="bg-green-600/80 backdrop-blur-md px-2 py-1 rounded-lg text-[8px] font-black border border-white/10 uppercase tracking-widest text-white">
+                      {s.engine} {t[lang].cc}
+                    </div>
                   </div>
                 </Link>
                 
@@ -200,12 +208,13 @@ export default function Home() {
                     </div>
                   </div>
                   
-                  <button 
-                    onClick={() => {setSelectedBike(s); setIsSubmitted(false);}}
-                    className="w-full bg-green-600 py-2.5 rounded-xl font-black text-[9px] uppercase transition-all active:scale-95 text-white shadow-lg shadow-green-900/20"
+                  {/* Кнопка "Узнать подробнее" */}
+                  <Link 
+                    href={`/bike/${s.id}`}
+                    className="w-full bg-white/5 border border-white/10 py-2.5 rounded-xl font-black text-[9px] uppercase transition-all active:scale-95 text-white flex items-center justify-center hover:bg-white/10"
                   >
                     {t[lang].btn}
-                  </button>
+                  </Link>
                 </div>
               </div>
             ))}
@@ -213,7 +222,7 @@ export default function Home() {
         )}
       </section>
 
-      {/* MODAL - Fixed Centering */}
+      {/* MODAL (Оставлен для обратной совместимости, если будете вызывать бронирование из карточки байка) */}
       {selectedBike && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/90 backdrop-blur-sm" onClick={() => setSelectedBike(null)} />
