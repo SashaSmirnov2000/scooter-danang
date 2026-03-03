@@ -120,9 +120,11 @@ export default function BikePage() {
       btn: "Забронировать",
       helmets: "2 шлема включено",
       clean: "Идеально чистый",
+      description: "Описание",
       modalSub: "Даты аренды", submitBtn: "Отправить запрос",
-      successTitle: "Принято!", 
-      successText: "Мы скоро свяжемся с вами в Telegram.",
+      successTitle: "Запрос отправлен", 
+      successText: "Мы уже связываемся с владельцем для уточнения наличия. Вы можете закрыть Mini App, мы пришлем уведомление в Telegram.",
+      workingHours: "Обработка заявок: 10:00 — 22:00 (местное время)",
       close: "Закрыть", labelStart: "Начало", labelEnd: "Конец", total: "Дней:"
     },
     en: { 
@@ -130,9 +132,11 @@ export default function BikePage() {
       btn: "Book Now",
       helmets: "2 helmets included",
       clean: "Perfectly clean",
+      description: "Description",
       modalSub: "Rental dates", submitBtn: "Send Request",
-      successTitle: "Sent!", 
-      successText: "We will contact you on Telegram shortly.",
+      successTitle: "Request Sent", 
+      successText: "We are currently contacting the owner to confirm availability. You can close the Mini App; we will send you a notification on Telegram.",
+      workingHours: "Working hours: 10:00 AM — 10:00 PM (local time)",
       close: "Close", labelStart: "Start", labelEnd: "End", total: "Days:"
     }
   };
@@ -177,28 +181,36 @@ export default function BikePage() {
 
         {/* INFO CARD */}
         <div className="bg-[#0f1117] rounded-[2.5rem] border border-white/5 p-6 mb-6">
-          {/* Service Tags */}
+          {/* Service Tags - Replaced Emojis with Status Dots */}
           <div className="flex flex-wrap gap-2 mb-6">
-            <div className="flex items-center gap-1.5 bg-green-500/10 px-3 py-1.5 rounded-lg border border-green-500/20 text-green-500 text-[9px] font-black uppercase">
-                <span>🪖</span> {t[lang].helmets}
+            <div className="flex items-center gap-2 bg-white/5 px-3 py-1.5 rounded-lg border border-white/10 text-gray-300 text-[9px] font-black uppercase tracking-widest">
+                <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span> {t[lang].helmets}
             </div>
-            <div className="flex items-center gap-1.5 bg-blue-500/10 px-3 py-1.5 rounded-lg border border-blue-500/20 text-blue-400 text-[9px] font-black uppercase">
-                <span>✨</span> {t[lang].clean}
+            <div className="flex items-center gap-2 bg-white/5 px-3 py-1.5 rounded-lg border border-white/10 text-gray-300 text-[9px] font-black uppercase tracking-widest">
+                <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span> {t[lang].clean}
             </div>
           </div>
 
           <div className="flex gap-2 mb-6">
-            <span className="bg-white/5 px-3 py-1.5 rounded-lg border border-white/10 text-white text-[10px] font-black uppercase">{bike.engine}cc</span>
+            <span className="bg-green-500/10 px-3 py-1.5 rounded-lg border border-green-500/20 text-green-500 text-[10px] font-black uppercase">{bike.engine}cc</span>
             <span className="bg-white/5 px-3 py-1.5 rounded-lg border border-white/10 text-white text-[10px] font-black uppercase">{bike.year}</span>
           </div>
 
+          {/* New Description Section */}
+          <div className="mb-8 px-1">
+            <p className="text-[8px] text-gray-500 uppercase font-black tracking-[0.2em] mb-3">{t[lang].description}</p>
+            <p className="text-xs text-gray-400 leading-relaxed font-medium">
+              {lang === 'ru' ? bike.description_ru : bike.description_en}
+            </p>
+          </div>
+
           <div className="grid grid-cols-2 gap-3 mb-6">
-            <div className="bg-black/30 p-4 rounded-2xl border border-white/5">
-                <p className="text-[8px] text-gray-500 uppercase font-bold mb-1">{t[lang].day}</p>
+            <div className="bg-black/30 p-4 rounded-2xl border border-white/5 text-center">
+                <p className="text-[8px] text-gray-500 uppercase font-bold mb-1 tracking-widest">{t[lang].day}</p>
                 <p className="text-lg font-black italic">{bike.price_day}</p>
             </div>
-            <div className="bg-green-500/5 p-4 rounded-2xl border border-green-500/10">
-                <p className="text-[8px] text-green-500/70 uppercase font-bold mb-1">{t[lang].month}</p>
+            <div className="bg-green-500/5 p-4 rounded-2xl border border-green-500/10 text-center">
+                <p className="text-[8px] text-green-500/70 uppercase font-bold mb-1 tracking-widest">{t[lang].month}</p>
                 <p className="text-lg font-black text-green-400 italic">{bike.price_month}</p>
             </div>
           </div>
@@ -216,7 +228,7 @@ export default function BikePage() {
       {showModal && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/95 backdrop-blur-md" onClick={() => setShowModal(false)} />
-          <div className="relative w-full max-w-sm bg-[#161922] border border-white/10 rounded-[2.5rem] p-7 shadow-2xl animate-in fade-in zoom-in duration-200">
+          <div className="relative w-full max-w-sm bg-[#11141b] border border-white/10 rounded-[2.5rem] p-7 shadow-2xl animate-in fade-in zoom-in duration-200">
             {!isSubmitted ? (
               <form onSubmit={handleBooking}>
                 <div className="text-center mb-8">
@@ -226,7 +238,6 @@ export default function BikePage() {
                     </div>
                 </div>
                 
-                {/* DATE SELECTORS IN ROW */}
                 <div className="grid grid-cols-2 gap-3 mb-6">
                   <div className="bg-black/20 p-3 rounded-2xl border border-white/5">
                     <label className="text-[8px] text-gray-500 uppercase font-black mb-1.5 block px-1">{t[lang].labelStart}</label>
@@ -242,12 +253,12 @@ export default function BikePage() {
 
                 <div className="flex items-center justify-between mb-8 px-2">
                   {totalDays() > 0 ? (
-                    <div className="px-3 py-1.5 bg-green-500/10 rounded-lg border border-green-500/20 text-[10px] text-green-500 font-black">
+                    <div className="px-3 py-1.5 bg-green-500/10 rounded-lg border border-green-500/20 text-[10px] text-green-500 font-black tracking-widest">
                        {t[lang].total} {totalDays()}
                     </div>
                   ) : <div></div>}
                   {ref && (
-                    <div className="text-[8px] text-gray-600 font-bold uppercase italic opacity-50">Ref: {ref}</div>
+                    <div className="text-[8px] text-gray-600 font-bold uppercase italic opacity-50">ID: {ref}</div>
                   )}
                 </div>
 
@@ -259,12 +270,21 @@ export default function BikePage() {
                 </div>
               </form>
             ) : (
-              <div className="text-center py-6">
-                <div className="w-16 h-16 bg-green-500/20 border border-green-500/30 rounded-full flex items-center justify-center mx-auto mb-6">
-                    <span className="text-2xl text-green-500">✓</span>
+              <div className="text-center py-4">
+                <div className="w-12 h-12 bg-green-500/10 border border-green-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
+                    <div className="w-2 h-2 bg-green-500 rounded-full animate-ping"></div>
                 </div>
-                <h2 className="text-xl font-black mb-2 uppercase italic tracking-tight">{t[lang].successTitle}</h2>
-                <p className="text-gray-400 text-[10px] mb-8 leading-relaxed px-4">{t[lang].successText}</p>
+                <h2 className="text-xl font-black mb-4 uppercase italic tracking-tight">{t[lang].successTitle}</h2>
+                <div className="space-y-4 mb-10">
+                    <p className="text-gray-300 text-[11px] leading-relaxed px-2">
+                        {t[lang].successText}
+                    </p>
+                    <div className="bg-white/5 p-3 rounded-xl border border-white/10">
+                        <p className="text-[9px] text-gray-500 font-black uppercase tracking-wider">
+                            {t[lang].workingHours}
+                        </p>
+                    </div>
+                </div>
                 <button onClick={() => setShowModal(false)} className="w-full bg-white/5 border border-white/10 py-4 rounded-xl text-[10px] font-black uppercase text-white tracking-widest transition-all active:scale-95">OK</button>
               </div>
             )}
