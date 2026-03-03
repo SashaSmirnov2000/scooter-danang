@@ -118,6 +118,8 @@ export default function BikePage() {
     ru: { 
       back: "← Назад", day: "сутки", month: "месяц", 
       btn: "Забронировать",
+      helmets: "2 шлема включено",
+      clean: "Идеально чистый",
       modalSub: "Даты аренды", submitBtn: "Отправить запрос",
       successTitle: "Принято!", 
       successText: "Мы скоро свяжемся с вами в Telegram.",
@@ -126,6 +128,8 @@ export default function BikePage() {
     en: { 
       back: "← Back", day: "day", month: "month", 
       btn: "Book Now",
+      helmets: "2 helmets included",
+      clean: "Perfectly clean",
       modalSub: "Rental dates", submitBtn: "Send Request",
       successTitle: "Sent!", 
       successText: "We will contact you on Telegram shortly.",
@@ -149,7 +153,7 @@ export default function BikePage() {
       </nav>
 
       <div className="w-full max-w-lg px-4 pt-20 pb-10">
-        {/* HERO IMAGE 3:4 (Vertical) */}
+        {/* HERO IMAGE 3:4 */}
         <div className="relative aspect-[3/4] w-full rounded-[2.5rem] overflow-hidden border border-white/5 shadow-2xl mb-6 bg-[#0f1117]">
           <img src={activePhoto} className="w-full h-full object-cover transition-all duration-500" alt={bike.model} />
           <div className="absolute inset-0 bg-gradient-to-t from-[#05070a] via-transparent to-transparent opacity-80" />
@@ -173,8 +177,18 @@ export default function BikePage() {
 
         {/* INFO CARD */}
         <div className="bg-[#0f1117] rounded-[2.5rem] border border-white/5 p-6 mb-6">
+          {/* Service Tags */}
+          <div className="flex flex-wrap gap-2 mb-6">
+            <div className="flex items-center gap-1.5 bg-green-500/10 px-3 py-1.5 rounded-lg border border-green-500/20 text-green-500 text-[9px] font-black uppercase">
+                <span>🪖</span> {t[lang].helmets}
+            </div>
+            <div className="flex items-center gap-1.5 bg-blue-500/10 px-3 py-1.5 rounded-lg border border-blue-500/20 text-blue-400 text-[9px] font-black uppercase">
+                <span>✨</span> {t[lang].clean}
+            </div>
+          </div>
+
           <div className="flex gap-2 mb-6">
-            <span className="bg-green-500/10 px-3 py-1.5 rounded-lg border border-green-500/20 text-green-500 text-[10px] font-black uppercase">{bike.engine}cc</span>
+            <span className="bg-white/5 px-3 py-1.5 rounded-lg border border-white/10 text-white text-[10px] font-black uppercase">{bike.engine}cc</span>
             <span className="bg-white/5 px-3 py-1.5 rounded-lg border border-white/10 text-white text-[10px] font-black uppercase">{bike.year}</span>
           </div>
 
@@ -198,57 +212,55 @@ export default function BikePage() {
         </div>
       </div>
 
-      {/* BOOKING MODAL - Fixed Centering */}
+      {/* BOOKING MODAL */}
       {showModal && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/90 backdrop-blur-md" onClick={() => setShowModal(false)} />
-          <div className="relative w-full max-w-sm bg-[#0f1117] border border-white/10 rounded-[2.5rem] p-7 shadow-2xl animate-in fade-in zoom-in duration-200">
+          <div className="absolute inset-0 bg-black/95 backdrop-blur-md" onClick={() => setShowModal(false)} />
+          <div className="relative w-full max-w-sm bg-[#161922] border border-white/10 rounded-[2.5rem] p-7 shadow-2xl animate-in fade-in zoom-in duration-200">
             {!isSubmitted ? (
               <form onSubmit={handleBooking}>
-                <div className="flex items-center gap-4 mb-8">
-                  <div className="w-14 h-14 rounded-xl overflow-hidden border border-white/10 flex-shrink-0">
-                    <img src={bike.image} className="w-full h-full object-cover" />
-                  </div>
-                  <div>
-                    <h2 className="text-xl font-black uppercase italic leading-tight tracking-tighter">{bike.model}</h2>
-                    <p className="text-[9px] text-gray-500 uppercase font-black tracking-widest">{t[lang].modalSub}</p>
-                  </div>
+                <div className="text-center mb-8">
+                    <h2 className="text-2xl font-black uppercase italic leading-tight tracking-tighter mb-1">{bike.model}</h2>
+                    <div className="inline-block px-3 py-1 bg-white/5 rounded-full border border-white/10">
+                        <p className="text-[9px] text-gray-400 uppercase font-black tracking-widest">{t[lang].modalSub}</p>
+                    </div>
                 </div>
                 
-                <div className="grid grid-cols-1 gap-4 mb-6">
-                  <div>
-                    <label className="text-[8px] text-gray-500 uppercase font-black ml-1 mb-1.5 block">{t[lang].labelStart}</label>
+                {/* DATE SELECTORS IN ROW */}
+                <div className="grid grid-cols-2 gap-3 mb-6">
+                  <div className="bg-black/20 p-3 rounded-2xl border border-white/5">
+                    <label className="text-[8px] text-gray-500 uppercase font-black mb-1.5 block px-1">{t[lang].labelStart}</label>
                     <input required type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} 
-                    className="w-full bg-white/5 border border-white/10 rounded-xl p-3.5 text-white outline-none focus:border-green-500 transition-all font-bold text-xs" style={{ colorScheme: 'dark' }} />
+                    className="w-full bg-transparent text-white outline-none font-bold text-xs" style={{ colorScheme: 'dark' }} />
                   </div>
-                  <div>
-                    <label className="text-[8px] text-gray-500 uppercase font-black ml-1 mb-1.5 block">{t[lang].labelEnd}</label>
+                  <div className="bg-black/20 p-3 rounded-2xl border border-white/5">
+                    <label className="text-[8px] text-gray-500 uppercase font-black mb-1.5 block px-1">{t[lang].labelEnd}</label>
                     <input required type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} 
-                    className="w-full bg-white/5 border border-white/10 rounded-xl p-3.5 text-white outline-none focus:border-green-500 transition-all font-bold text-xs" style={{ colorScheme: 'dark' }} />
+                    className="w-full bg-transparent text-white outline-none font-bold text-xs" style={{ colorScheme: 'dark' }} />
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between mb-8">
-                  {totalDays() > 0 && (
+                <div className="flex items-center justify-between mb-8 px-2">
+                  {totalDays() > 0 ? (
                     <div className="px-3 py-1.5 bg-green-500/10 rounded-lg border border-green-500/20 text-[10px] text-green-500 font-black">
                        {t[lang].total} {totalDays()}
                     </div>
-                  )}
+                  ) : <div></div>}
                   {ref && (
-                    <div className="text-[8px] text-gray-600 font-bold uppercase italic">Ref: {ref}</div>
+                    <div className="text-[8px] text-gray-600 font-bold uppercase italic opacity-50">Ref: {ref}</div>
                   )}
                 </div>
 
                 <div className="flex gap-2">
-                  <button type="button" onClick={() => setShowModal(false)} className="flex-1 bg-white/5 py-4 rounded-xl text-[10px] font-black uppercase text-gray-400 border border-white/5">{t[lang].close}</button>
-                  <button type="submit" disabled={isSubmitting} className="flex-[2] bg-green-600 py-4 rounded-xl text-[10px] font-black uppercase text-white shadow-lg shadow-green-900/40">
+                  <button type="button" onClick={() => setShowModal(false)} className="flex-1 bg-white/5 py-4 rounded-xl text-[10px] font-black uppercase text-gray-400 border border-white/5 active:scale-95 transition-all">{t[lang].close}</button>
+                  <button type="submit" disabled={isSubmitting} className="flex-[2] bg-green-600 py-4 rounded-xl text-[10px] font-black uppercase text-white shadow-lg shadow-green-900/40 active:scale-95 transition-all">
                     {isSubmitting ? '...' : t[lang].submitBtn}
                   </button>
                 </div>
               </form>
             ) : (
               <div className="text-center py-6">
-                <div className="w-14 h-14 bg-green-500/20 border border-green-500/30 rounded-full flex items-center justify-center mx-auto mb-6">
+                <div className="w-16 h-16 bg-green-500/20 border border-green-500/30 rounded-full flex items-center justify-center mx-auto mb-6">
                     <span className="text-2xl text-green-500">✓</span>
                 </div>
                 <h2 className="text-xl font-black mb-2 uppercase italic tracking-tight">{t[lang].successTitle}</h2>
