@@ -74,65 +74,17 @@ export default function Home() {
     localStorage.setItem('userLang', newLang);
   };
 
-  const totalDays = () => {
-    if (!startDate || !endDate) return 0;
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    const diff = end.getTime() - start.getTime();
-    return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
-  };
-
-  const handleBooking = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (totalDays() <= 0) {
-        alert(lang === 'ru' ? "Дата окончания должна быть позже даты начала" : "End date must be after start date");
-        return;
-    }
-    setIsSubmitting(true);
-    const tg = (window as any).Telegram?.WebApp;
-    const user = tg?.initDataUnsafe?.user;
-    
-    const bookingData = {
-      bike_id: selectedBike.id,
-      bike_model: selectedBike.model,
-      start_date: startDate,
-      end_date: endDate,
-      client_username: user?.username || 'web_user',
-      telegram_id: user?.id,
-      referrer: ref
-    };
-
-    try {
-      const { error: dbError } = await supabase.from('bookings').insert([bookingData]);
-      if (dbError) throw dbError;
-      await fetch('/api/send-telegram', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(bookingData),
-      });
-      setIsSubmitted(true);
-    } catch (error: any) {
-      alert("Error: " + error.message);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
   const t = {
     ru: { 
       title: "Аренда скутеров", location: "Дананг, Вьетнам",
-      btn: "Узнать подробнее", day: "сутки", month: "месяц",
-      modalTitle: "Бронирование", modalSub: "Даты аренды",
-      startDate: "Начало", endDate: "Конец", submitBtn: "Отправить запрос",
-      successTitle: "Готово!", successText: "Мы скоро ответим в Telegram.",
+      btn: "Подробнее", day: "1 сутки", month: "от 2 суток",
+      rate: "Курс: 1$ ≈ 26k",
       close: "Закрыть", total: "Дней:", cc: "cc"
     },
     en: { 
       title: "Scooter Rental", location: "Da Nang",
-      btn: "Details", day: "day", month: "month",
-      modalTitle: "Booking", modalSub: "Select dates",
-      startDate: "Start", endDate: "End", submitBtn: "Send Request",
-      successTitle: "Sent!", successText: "We've received your request.",
+      btn: "Details", day: "1 day", month: "2+ days",
+      rate: "Rate: 1$ ≈ 26k",
       close: "Close", total: "Days:", cc: "cc"
     }
   };
@@ -141,17 +93,23 @@ export default function Home() {
     <main className="bg-[#05070a] min-h-screen text-white font-sans flex flex-col selection:bg-green-500/30">
       
       {/* HEADER */}
-      <nav className="fixed top-0 w-full z-[100] bg-[#05070a]/90 backdrop-blur-md border-b border-white/5 h-16 flex items-center justify-between px-5">
+      <nav className="fixed top-0 w-full z-[100] bg-[#05070a]/90 backdrop-blur-md border-b border-white/5 h-16 flex items-center justify-between px-4">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 bg-green-500 rounded-lg flex items-center justify-center text-lg shadow-[0_0_15px_rgba(34,197,94,0.3)]">🐉</div>
           <div className="flex flex-col">
-            <span className="font-black text-sm tracking-tighter uppercase leading-none">Dragon Bike</span>
-            <span className="text-[8px] text-green-500 font-bold tracking-[0.2em] uppercase">Danang</span>
+            <span className="font-black text-[12px] tracking-tighter uppercase leading-none text-white">Dragon Bike</span>
+            <span className="text-[7px] text-green-500 font-bold tracking-[0.2em] uppercase">Danang</span>
           </div>
         </div>
-        <button onClick={toggleLang} className="bg-white/5 border border-white/10 px-4 py-1.5 rounded-xl text-[10px] font-bold uppercase active:scale-95 transition-all">
-          {lang === 'ru' ? 'EN' : 'RU'}
-        </button>
+
+        <div className="flex items-center gap-2">
+          <div className="bg-white/5 border border-white/10 px-3 py-1.5 rounded-xl text-[9px] font-black text-green-500 tracking-tighter uppercase whitespace-nowrap">
+            {t[lang].rate}
+          </div>
+          <button onClick={toggleLang} className="bg-white/5 border border-white/10 w-10 h-8 rounded-xl text-[10px] font-black uppercase active:scale-95 transition-all flex items-center justify-center">
+            {lang === 'ru' ? 'EN' : 'RU'}
+          </button>
+        </div>
       </nav>
 
       {/* HERO */}
@@ -167,57 +125,53 @@ export default function Home() {
       </section>
 
       {/* GRID */}
-      <section className="max-w-7xl mx-auto px-4 pb-20 relative z-20 w-full">
+      <section className="max-w-7xl mx-auto px-3 pb-20 relative z-20 w-full">
         {loading ? (
           <div className="flex justify-center py-20"><div className="w-8 h-8 border-2 border-green-500 border-t-transparent rounded-full animate-spin" /></div>
         ) : (
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {bikes.map((s) => (
-              <div key={s.id} className="group bg-[#0f1117] rounded-[2rem] border border-white/5 overflow-hidden flex flex-col transition-all duration-300 hover:border-green-500/30 shadow-2xl">
+              <div key={s.id} className="group bg-[#0f1117] rounded-[1.8rem] border border-white/5 overflow-hidden flex flex-col transition-all duration-300 hover:border-green-500/30 shadow-2xl">
                 
-                {/* Image Area - CLEAN */}
                 <Link href={`/bike/${s.id}`} className="relative aspect-[4/5] w-full overflow-hidden block">
                   <img 
                     src={s.image} 
                     className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" 
                     alt={s.model} 
                   />
-                  {/* Subtle Year Badge */}
-                  <div className="absolute bottom-3 right-3 bg-black/40 backdrop-blur-md px-2 py-0.5 rounded text-[8px] font-bold border border-white/10 text-white/60">
+                  <div className="absolute bottom-2 right-2 bg-black/40 backdrop-blur-md px-1.5 py-0.5 rounded text-[7px] font-bold border border-white/10 text-white/60">
                     {s.year}
                   </div>
                 </Link>
                 
-                {/* Content Area */}
-                <div className="p-4 flex flex-col">
-                  
-                  {/* Minimal Specs Line - NEW DESIGN */}
-                  <div className="flex items-center gap-2 mb-2 text-[9px] font-bold uppercase tracking-widest text-green-500/80">
+                <div className="p-3 flex flex-col">
+                  <div className="flex items-center gap-1.5 mb-1.5 text-[8px] font-black uppercase tracking-widest text-green-500/80">
                     <span>{s.transmission}</span>
                     <span className="w-1 h-1 bg-white/20 rounded-full" />
                     <span>{s.engine}{t[lang].cc}</span>
                   </div>
 
-                  <h3 className="text-base font-black uppercase italic tracking-tighter mb-4 leading-none truncate">
+                  <h3 className="text-[13px] font-black uppercase italic tracking-tighter mb-3 leading-none truncate">
                     {s.model}
                   </h3>
                   
-                  {/* Pricing */}
-                  <div className="grid grid-cols-2 gap-2 mb-5">
-                    <div className="bg-white/5 rounded-xl p-2 border border-white/5">
-                      <p className="text-[7px] text-gray-500 uppercase font-bold mb-0.5">{t[lang].day}</p>
-                      <p className="text-[11px] font-black">{s.price_day}</p>
+                  {/* Updated Pricing Section */}
+                  <div className="grid grid-cols-2 gap-1.5 mb-4">
+                    <div className="bg-white/5 rounded-lg p-1.5 border border-white/5">
+                      <p className="text-[6px] text-gray-500 uppercase font-black mb-0.5">{t[lang].day}</p>
+                      <p className="text-[9px] font-black tracking-tighter">{s.price_day}</p>
                     </div>
-                    <div className="bg-green-500/5 rounded-xl p-2 border border-green-500/10">
-                      <p className="text-[7px] text-green-500/50 uppercase font-bold mb-0.5">{t[lang].month}</p>
-                      <p className="text-[11px] font-black text-green-400">{s.price_month}</p>
+                    <div className="bg-green-500/5 rounded-lg p-1.5 border border-green-500/10">
+                      <p className="text-[6px] text-green-500/50 uppercase font-black mb-0.5">{t[lang].month}</p>
+                      <p className="text-[9px] font-black text-green-400 tracking-tighter">
+                        {s.price_2days || s.price_day}
+                      </p>
                     </div>
                   </div>
                   
-                  {/* Action Button */}
                   <Link 
                     href={`/bike/${s.id}`}
-                    className="w-full bg-white text-black py-3 rounded-xl font-black text-[10px] uppercase transition-all active:scale-95 flex items-center justify-center hover:bg-green-500 hover:text-white shadow-xl shadow-black/20"
+                    className="w-full bg-white text-black py-2.5 rounded-lg font-black text-[9px] uppercase transition-all active:scale-95 flex items-center justify-center hover:bg-green-500 hover:text-white shadow-lg"
                   >
                     {t[lang].btn}
                   </Link>
@@ -227,13 +181,6 @@ export default function Home() {
           </div>
         )}
       </section>
-
-      {/* MODAL - (Keep for later usage if needed) */}
-      {selectedBike && (
-         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
-            {/* ... (rest of modal code remains same as previous version) ... */}
-         </div>
-      )}
 
       <footer className="w-full py-8 text-center border-t border-white/5 mt-auto">
         <p className="text-[9px] text-gray-600 font-bold uppercase tracking-[0.3em]">Dragon Bike &bull; 2026</p>
