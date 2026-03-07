@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams } from "next/navigation";
 import { supabase } from "../../supabase"; 
 import Link from "next/link";
@@ -11,7 +11,7 @@ export default function BikePage() {
   const [isReady, setIsReady] = useState(false); 
   const [bike, setBike] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [activePhoto, setActivePhoto] = useState('');
+  const [activePhotoIndex, setActivePhotoIndex] = useState(0);
   const [ref, setRef] = useState<string>('');
 
   const [showModal, setShowModal] = useState(false);
@@ -19,6 +19,10 @@ export default function BikePage() {
   const [endDate, setEndDate] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
+
+  // Для обработки свайпов
+  const touchStartX = useRef<number | null>(null);
+  const touchEndX = useRef<number | null>(null);
 
   useEffect(() => {
     const savedLang = localStorage.getItem('userLang');
@@ -57,7 +61,6 @@ export default function BikePage() {
 
       if (!error && data) {
         setBike(data);
-        setActivePhoto(data.image);
       }
       setLoading(false);
     }
@@ -78,19 +81,14 @@ export default function BikePage() {
     return Math.max(0, Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)));
   };
 
-  // Функция расчета итоговой стоимости
   const calculateTotalOrderPrice = () => {
     const days = totalDays();
     if (days <= 0) return 0;
-    
-    // Чистим цену от лишних символов (точки, пробелы, буквы), оставляем только цифры
     const cleanPrice = (p: string) => parseInt(p?.replace(/\D/g, '') || '0');
-    
     const p1 = cleanPrice(bike.price_day);
     const p2 = bike.price_2days ? cleanPrice(bike.price_2days) : p1;
-
     const finalDayPrice = days >= 2 ? p2 : p1;
-    return (finalDayPrice * days).toLocaleString('de-DE'); // Форматируем обратно с точками
+    return (finalDayPrice * days).toLocaleString('de-DE');
   };
 
   const handleBooking = async (e: React.FormEvent) => {
@@ -112,7 +110,7 @@ export default function BikePage() {
       client_username: user?.username || 'web_user',
       telegram_id: user?.id,
       referrer: ref,
-      total_price: calculateTotalOrderPrice() + " VND" // Добавляем цену заказа в таблицу
+      total_price: calculateTotalOrderPrice() + " VND"
     };
 
     try {
@@ -165,6 +163,29 @@ export default function BikePage() {
 
   const gallery = [bike.image, ...(bike.images_gallery ? bike.images_gallery.split(',').map((s: string) => s.trim()) : [])];
 
+  // Логика свайпа
+  const onTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.targetTouches[0].clientX;
+  };
+  const onTouchMove = (e: React.TouchEvent) => {
+    touchEndX.current = e.targetTouches[0].clientX;
+  };
+  const onTouchEnd = () => {
+    if (!touchStartX.current || !touchEndX.current) return;
+    const distance = touchStartX.current - touchEndX.current;
+    const isLeftSwipe = distance > 50;
+    const isRightSwipe = distance < -50;
+
+    if (isLeftSwipe && activePhotoIndex < gallery.length - 1) {
+      setActivePhotoIndex(prev => prev + 1);
+    }
+    if (isRightSwipe && activePhotoIndex > 0) {
+      setActivePhotoIndex(prev => prev - 1);
+    }
+    touchStartX.current = null;
+    touchEndX.current = null;
+  };
+
   return (
     <main className="min-h-screen bg-[#05070a] text-white font-sans flex flex-col items-center overflow-x-hidden">
       
@@ -175,20 +196,39 @@ export default function BikePage() {
       </nav>
 
       <div className="w-full max-w-lg px-4 pt-20 pb-10">
-        <div className="relative aspect-[3/4] w-full rounded-[2.5rem] overflow-hidden border border-white/5 shadow-2xl mb-6 bg-[#0f1117]">
-          <img src={activePhoto} className="w-full h-full object-cover transition-all duration-500" alt={bike.model} />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#05070a] via-transparent to-transparent opacity-80" />
-          <div className="absolute bottom-8 left-8">
-             <h1 className="text-4xl font-black uppercase italic leading-none tracking-tighter drop-shadow-lg">{bike.model}</h1>
+        <div 
+          className="relative aspect-[3/4] w-full rounded-[2.5rem] overflow-hidden border border-white/5 shadow-2xl mb-6 bg-[#0f1117] touch-none"
+          onTouchStart={onTouchStart}
+          onTouchMove={onTouchMove}
+          onTouchEnd={onTouchEnd}
+        >
+          {/* Main Photo Display with transition */}
+          <div className="w-full h-full flex transition-transform duration-500 ease-out" style={{ transform: `translateX(-${activePhotoIndex * 100}%)` }}>
+            {gallery.map((img, i) => (
+              <img key={i} src={img} className="w-full h-full object-cover flex-shrink-0" alt={bike.model} />
+            ))}
+          </div>
+
+          <div className="absolute inset-0 pointer-events-none bg-gradient-to-t from-[#05070a] via-transparent to-transparent opacity-80" />
+          <div className="absolute bottom-8 left-8 pointer-events-none">
+              <h1 className="text-4xl font-black uppercase italic leading-none tracking-tighter drop-shadow-lg">{bike.model}</h1>
+          </div>
+
+          {/* Pagination dots */}
+          <div className="absolute bottom-4 right-8 flex gap-1.5">
+            {gallery.map((_, i) => (
+              <div key={i} className={`h-1 rounded-full transition-all duration-300 ${activePhotoIndex === i ? 'w-4 bg-green-500' : 'w-1 bg-white/30'}`} />
+            ))}
           </div>
         </div>
 
+        {/* Thumbnails */}
         <div className="flex gap-3 overflow-x-auto pb-6 no-scrollbar px-2">
           {gallery.map((img, idx) => (
             <button 
                 key={idx} 
-                onClick={() => setActivePhoto(img)} 
-                className={`w-16 h-20 rounded-xl overflow-hidden flex-shrink-0 border-2 transition-all ${activePhoto === img ? 'border-green-500 scale-95' : 'border-transparent opacity-40'}`}
+                onClick={() => setActivePhotoIndex(idx)} 
+                className={`w-16 h-20 rounded-xl overflow-hidden flex-shrink-0 border-2 transition-all ${activePhotoIndex === idx ? 'border-green-500 scale-95' : 'border-transparent opacity-40'}`}
             >
               <img src={img} className="w-full h-full object-cover" alt="preview" />
             </button>
@@ -270,7 +310,6 @@ export default function BikePage() {
                   </div>
                 </div>
 
-                {/* Расчет итоговой цены */}
                 <div className="bg-white/5 rounded-2xl p-4 mb-8 border border-white/5 flex items-center justify-between">
                    <div>
                       <p className="text-[8px] text-gray-500 uppercase font-black">{t[lang].total}</p>
