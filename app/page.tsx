@@ -85,8 +85,8 @@ export default function Home() {
   const categories = [
     { id: 'Автомат', ru: 'Автомат', en: 'Auto' },
     { id: 'Полуавтомат', ru: 'Полуавто', en: 'Semi' },
-    { id: 'Электро', ru: 'Электро*', en: 'Elec*' },
     { id: 'Механика', ru: 'Механика', en: 'Manual' },
+    { id: 'Электро', ru: 'Электро / Без прав', en: 'Electric / No license' },
   ];
 
   const t = {
@@ -95,16 +95,14 @@ export default function Home() {
       btn: "Подробнее", day: "1 сутки", month: "от 2 суток",
       rate: "Курс: 1$ ≈ 26k",
       close: "Закрыть", total: "Дней:", cc: "cc",
-      noBikes: "В этой категории пока нет байков",
-      noLicense: "*Электро — можно без прав"
+      noBikes: "В этой категории пока нет байков"
     },
     en: { 
       title: "Scooter Rental", location: "Da Nang",
       btn: "Details", day: "1 day", month: "2+ days",
       rate: "Rate: 1$ ≈ 26k",
       close: "Close", total: "Days:", cc: "cc",
-      noBikes: "No bikes in this category yet",
-      noLicense: "*Electric — no license needed"
+      noBikes: "No bikes in this category yet"
     }
   };
 
@@ -137,27 +135,26 @@ export default function Home() {
         </div>
         
         <div className="relative z-10 mb-6">
-          <h1 className="text-2xl font-black uppercase italic tracking-tight" onClick={() => setActiveCategory('All')} style={{cursor: 'pointer'}}>{t[lang].title}</h1>
+          <h1 className="text-2xl font-black uppercase italic tracking-tight cursor-pointer active:opacity-70" onClick={() => setActiveCategory('All')}>{t[lang].title}</h1>
           <p className="text-green-500 text-[10px] font-bold tracking-widest uppercase mt-1">{t[lang].location}</p>
         </div>
 
-        <div className="relative z-10 w-full max-w-md px-1">
-          <div className="grid grid-cols-4 gap-1.5 mb-2">
+        <div className="relative z-10 w-full max-w-2xl mx-auto px-1">
+          <div className="flex flex-wrap justify-center gap-1.5">
             {categories.map((cat) => (
               <button
                 key={cat.id}
                 onClick={() => setActiveCategory(activeCategory === cat.id ? 'All' : cat.id)}
-                className={`py-2 rounded-xl text-[9px] font-black uppercase tracking-tighter transition-all border ${
+                className={`px-3 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-tighter transition-all border shrink-0 ${
                   activeCategory === cat.id 
-                  ? 'bg-green-600 border-green-500 text-white shadow-[0_0_15px_rgba(34,197,94,0.2)] scale-[1.02]' 
-                  : 'bg-white/5 border-white/5 text-gray-400 hover:text-white'
-                }`}
+                  ? 'bg-green-600 border-green-500 text-white shadow-[0_0_15px_rgba(34,197,94,0.2)]' 
+                  : 'bg-white/5 border-white/5 text-gray-400 hover:text-white hover:bg-white/10'
+                } ${cat.id === 'Электро' ? 'flex-[1.5] min-w-[140px]' : 'flex-1 min-w-[80px]'}`}
               >
                 {lang === 'ru' ? cat.ru : cat.en}
               </button>
             ))}
           </div>
-          <p className="text-[8px] text-gray-500 font-bold uppercase tracking-widest">{t[lang].noLicense}</p>
         </div>
       </section>
 
