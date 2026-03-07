@@ -27,7 +27,8 @@ export default function AdminPage() {
     const [imagesGallery, setImagesGallery] = useState(''); 
     const [engine, setEngine] = useState('');
     const [transmission, setTransmission] = useState('Автомат');
-    const [noLicense, setNoLicense] = useState(false); // НОВОЕ
+    const [noLicense, setNoLicense] = useState(false);
+    const [sortOrder, setSortOrder] = useState('0'); // НОВОЕ
     const [descriptionRu, setDescriptionRu] = useState('');
     const [descriptionEn, setDescriptionEn] = useState('');
     const [vendorPhone, setVendorPhone] = useState('84'); 
@@ -43,7 +44,8 @@ export default function AdminPage() {
         setLoading(true);
         try {
             if (activeTab === 'bikes') {
-                const { data } = await supabase.from('scooters').select('*').order('id', { ascending: false });
+                // Изменено: сортировка по sort_order
+                const { data } = await supabase.from('scooters').select('*').order('sort_order', { ascending: true });
                 if (data) setScooters(data);
             } else if (activeTab === 'bookings') {
                 const { data } = await supabase.from('bookings').select('*').order('created_at', { ascending: false });
@@ -87,7 +89,8 @@ export default function AdminPage() {
         setImagesGallery(scooter.images_gallery || '');
         setEngine(scooter.engine || '');
         setTransmission(scooter.transmission || 'Автомат');
-        setNoLicense(scooter.no_license || false); // НОВОЕ
+        setNoLicense(scooter.no_license || false);
+        setSortOrder(scooter.sort_order?.toString() || '0'); // НОВОЕ
         setDescriptionRu(scooter.description_ru || '');
         setDescriptionEn(scooter.description_en || '');
         setVendorPhone(scooter.vendor_phone || '84');
@@ -103,7 +106,7 @@ export default function AdminPage() {
     const resetForm = () => {
         setModel(''); setPriceDay(''); setPrice2Days(''); setPriceMonth(''); setImage('');
         setImagesGallery(''); setEngine(''); setTransmission('Автомат');
-        setNoLicense(false); // НОВОЕ
+        setNoLicense(false); setSortOrder('0'); // НОВОЕ
         setDescriptionRu(''); setDescriptionEn(''); setVendorPhone('84'); setMapUrl('');
     };
 
@@ -118,7 +121,8 @@ export default function AdminPage() {
             images_gallery: imagesGallery, 
             engine, 
             transmission,
-            no_license: noLicense, // НОВОЕ
+            no_license: noLicense,
+            sort_order: parseInt(sortOrder) || 0, // НОВОЕ
             description_ru: descriptionRu,
             description_en: descriptionEn,
             vendor_phone: vendorPhone,
@@ -272,6 +276,8 @@ export default function AdminPage() {
                                 </label>
                             </div>
 
+                            <input className="bg-black/40 p-4 rounded-2xl outline-none border border-white/5 focus:border-green-500 text-white" type="number" placeholder="Порядок (номер)" value={sortOrder} onChange={e => setSortOrder(e.target.value)} />
+
                             <input className="md:col-span-2 bg-black/40 p-4 rounded-2xl outline-none border border-white/5 focus:border-green-500 text-white" placeholder="Ссылка на Google Maps" value={mapUrl} onChange={e => setMapUrl(e.target.value)} />
                             <input className="md:col-span-2 bg-black/40 p-4 rounded-2xl outline-none border border-white/5 focus:border-green-500 text-white" placeholder="Главное фото (URL)" value={image} onChange={e => setImage(e.target.value)} required />
                             <textarea className="md:col-span-2 bg-black/40 p-4 rounded-2xl outline-none border border-white/5 focus:border-green-500 text-white h-20 resize-none" placeholder="Галерея (ссылки через запятую)" value={imagesGallery} onChange={e => setImagesGallery(e.target.value)} />
@@ -288,7 +294,10 @@ export default function AdminPage() {
                             {loading ? <p>Загрузка...</p> : scooters.map(s => (
                                 <div key={s.id} className="bg-[#11141b] p-4 rounded-[2rem] flex justify-between items-center border border-white/5">
                                     <div className="flex items-center gap-4">
-                                        <img src={s.image} className="w-12 h-12 object-cover rounded-xl shadow-lg" alt="" />
+                                        <div className="relative">
+                                            <img src={s.image} className="w-12 h-12 object-cover rounded-xl shadow-lg" alt="" />
+                                            <span className="absolute -top-2 -left-2 bg-green-600 text-[8px] font-black w-5 h-5 flex items-center justify-center rounded-full border-2 border-[#11141b]">{s.sort_order}</span>
+                                        </div>
                                         <div>
                                             <p className="font-bold uppercase italic text-sm">{s.model} {s.no_license && <span className="text-green-500 ml-2">✓</span>}</p>
                                             <p className="text-[9px] text-gray-500 uppercase">{s.transmission} • {s.engine}cc</p>
