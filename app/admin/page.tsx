@@ -11,14 +11,11 @@ export default function AdminPage() {
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState<'bikes' | 'bookings' | 'partners'>('bookings');
     
-    // БЕЗОПАСНОСТЬ
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [adminPassword, setAdminPassword] = useState('');
 
-    // Состояние редактирования
     const [editingId, setEditingId] = useState<number | null>(null);
 
-    // Поля формы
     const [model, setModel] = useState('');
     const [priceDay, setPriceDay] = useState('');
     const [price2Days, setPrice2Days] = useState(''); 
@@ -28,7 +25,7 @@ export default function AdminPage() {
     const [engine, setEngine] = useState('');
     const [transmission, setTransmission] = useState('Автомат');
     const [noLicense, setNoLicense] = useState(false);
-    const [sortOrder, setSortOrder] = useState('0'); // НОВОЕ
+    const [sortOrder, setSortOrder] = useState('0');
     const [descriptionRu, setDescriptionRu] = useState('');
     const [descriptionEn, setDescriptionEn] = useState('');
     const [vendorPhone, setVendorPhone] = useState('84'); 
@@ -44,7 +41,6 @@ export default function AdminPage() {
         setLoading(true);
         try {
             if (activeTab === 'bikes') {
-                // Изменено: сортировка по sort_order
                 const { data } = await supabase.from('scooters').select('*').order('sort_order', { ascending: true });
                 if (data) setScooters(data);
             } else if (activeTab === 'bookings') {
@@ -66,6 +62,23 @@ export default function AdminPage() {
             console.error("Ошибка загрузки:", error);
         }
         setLoading(false);
+    }
+
+    // ФУНКЦИЯ ПЕРЕМЕЩЕНИЯ (Drag-and-drop на кнопках)
+    async function moveScooter(currentIndex: number, direction: 'up' | 'down') {
+        const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+        if (targetIndex < 0 || targetIndex >= scooters.length) return;
+
+        const currentScooter = scooters[currentIndex];
+        const targetScooter = scooters[targetIndex];
+
+        // Меняем sort_order местами
+        const { error: err1 } = await supabase.from('scooters').update({ sort_order: targetScooter.sort_order }).eq('id', currentScooter.id);
+        const { error: err2 } = await supabase.from('scooters').update({ sort_order: currentScooter.sort_order }).eq('id', targetScooter.id);
+
+        if (!err1 && !err2) {
+            fetchData(); // Перезагружаем список
+        }
     }
 
     const handleLogin = (e: React.FormEvent) => {
@@ -90,7 +103,7 @@ export default function AdminPage() {
         setEngine(scooter.engine || '');
         setTransmission(scooter.transmission || 'Автомат');
         setNoLicense(scooter.no_license || false);
-        setSortOrder(scooter.sort_order?.toString() || '0'); // НОВОЕ
+        setSortOrder(scooter.sort_order?.toString() || '0');
         setDescriptionRu(scooter.description_ru || '');
         setDescriptionEn(scooter.description_en || '');
         setVendorPhone(scooter.vendor_phone || '84');
@@ -106,7 +119,7 @@ export default function AdminPage() {
     const resetForm = () => {
         setModel(''); setPriceDay(''); setPrice2Days(''); setPriceMonth(''); setImage('');
         setImagesGallery(''); setEngine(''); setTransmission('Автомат');
-        setNoLicense(false); setSortOrder('0'); // НОВОЕ
+        setNoLicense(false); setSortOrder('0');
         setDescriptionRu(''); setDescriptionEn(''); setVendorPhone('84'); setMapUrl('');
     };
 
@@ -122,7 +135,7 @@ export default function AdminPage() {
             engine, 
             transmission,
             no_license: noLicense,
-            sort_order: parseInt(sortOrder) || 0, // НОВОЕ
+            sort_order: parseInt(sortOrder) || 0,
             description_ru: descriptionRu,
             description_en: descriptionEn,
             vendor_phone: vendorPhone,
@@ -291,9 +304,23 @@ export default function AdminPage() {
                         </form>
 
                         <div className="grid gap-4">
-                            {loading ? <p>Загрузка...</p> : scooters.map(s => (
+                            {loading ? <p>Загрузка...</p> : scooters.map((s, index) => (
                                 <div key={s.id} className="bg-[#11141b] p-4 rounded-[2rem] flex justify-between items-center border border-white/5">
                                     <div className="flex items-center gap-4">
+                                        {/* Кнопки перемещения */}
+                                        <div className="flex flex-col gap-1 mr-2">
+                                            <button 
+                                                onClick={() => moveScooter(index, 'up')}
+                                                disabled={index === 0}
+                                                className={`text-[14px] ${index === 0 ? 'opacity-20' : 'hover:text-green-500'}`}
+                                            >▲</button>
+                                            <button 
+                                                onClick={() => moveScooter(index, 'down')}
+                                                disabled={index === scooters.length - 1}
+                                                className={`text-[14px] ${index === scooters.length - 1 ? 'opacity-20' : 'hover:text-green-500'}`}
+                                            >▼</button>
+                                        </div>
+
                                         <div className="relative">
                                             <img src={s.image} className="w-12 h-12 object-cover rounded-xl shadow-lg" alt="" />
                                             <span className="absolute -top-2 -left-2 bg-green-600 text-[8px] font-black w-5 h-5 flex items-center justify-center rounded-full border-2 border-[#11141b]">{s.sort_order}</span>
