@@ -71,10 +71,14 @@ export default function Home() {
     if (activeCategory === 'All') {
       setFilteredBikes(bikes);
     } else if (activeCategory === 'Электро') {
-      // Логика: Электро ИЛИ (Полуавтомат + 50сс)
+      // Собираем всё, что не требует прав:
+      // 1. Тип Электро
+      // 2. Или 50сс
+      // 3. Или стоит спец. галочка no_license в базе
       const filtered = bikes.filter(bike => 
         bike.transmission === 'Электро' || 
-        (bike.transmission === 'Полуавтомат' && Number(bike.engine) === 50)
+        (bike.transmission === 'Полуавтомат' && Number(bike.engine) === 50) ||
+        bike.no_license === true
       );
       setFilteredBikes(filtered);
     } else {
@@ -102,14 +106,16 @@ export default function Home() {
       btn: "Подробнее", day: "1 сутки", month: "от 2 суток",
       rate: "Курс: 1$ ≈ 26k",
       close: "Закрыть", total: "Дней:", cc: "cc",
-      noBikes: "В этой категории пока нет байков"
+      noBikes: "В этой категории пока нет байков",
+      badgeNoLicense: "Без прав"
     },
     en: { 
       title: "Scooter Rental", location: "Da Nang",
       btn: "Details", day: "1 day", month: "2+ days",
       rate: "Rate: 1$ ≈ 26k",
       close: "Close", total: "Days:", cc: "cc",
-      noBikes: "No bikes in this category yet"
+      noBikes: "No bikes in this category yet",
+      badgeNoLicense: "No license"
     }
   };
 
@@ -178,10 +184,21 @@ export default function Home() {
               <div key={s.id} className="group bg-[#0f1117] rounded-[1.8rem] border border-white/5 overflow-hidden flex flex-col transition-all duration-300 hover:border-green-500/30 shadow-2xl">
                 <Link href={`/bike/${s.id}`} className="relative aspect-[4/5] w-full overflow-hidden block">
                   <img src={s.image} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" alt={s.model} />
+                  
+                  {/* Контейнер для бейджей поверх фото */}
+                  <div className="absolute top-2 left-2 flex flex-col gap-1">
+                    {s.no_license && (
+                      <div className="bg-green-500 text-black px-2 py-1 rounded-md text-[7px] font-black uppercase tracking-tighter shadow-lg">
+                        {t[lang].badgeNoLicense}
+                      </div>
+                    )}
+                  </div>
+
                   <div className="absolute bottom-2 right-2 bg-black/40 backdrop-blur-md px-1.5 py-0.5 rounded text-[7px] font-bold border border-white/10 text-white/60">
                     {s.year}
                   </div>
                 </Link>
+
                 <div className="p-3 flex flex-col">
                   <div className="flex items-center gap-1.5 mb-1.5 text-[8px] font-black uppercase tracking-widest text-green-500/80">
                     <span>{s.transmission}</span>
