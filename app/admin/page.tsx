@@ -254,6 +254,7 @@ export default function AdminPage() {
                                 <option value="Автомат">Автомат</option>
                                 <option value="Механика">Механика</option>
                                 <option value="Полуавтомат">Полуавтомат</option>
+                                <option value="Электро">Электро</option>
                             </select>
 
                             <input className="md:col-span-2 bg-black/40 p-4 rounded-2xl outline-none border border-white/5 focus:border-green-500 text-white" placeholder="Ссылка на Google Maps" value={mapUrl} onChange={e => setMapUrl(e.target.value)} />
