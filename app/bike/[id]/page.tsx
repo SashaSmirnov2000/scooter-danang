@@ -133,27 +133,27 @@ export default function BikePage() {
     ru: { 
       back: "← Назад", day: "1 сутки", month: "от 2 суток", 
       btn: "Забронировать",
-      helmets: "2 шлема",
-      clean: "Идеально чистый",
+      helmets: "В комплекте 2 шлема",
+      clean: "Идеально чистое состояние",
       description: "Описание",
       transmission: "Трансмиссия",
       modalSub: "Даты аренды", submitBtn: "Отправить запрос",
       successTitle: "Запрос принят", 
-      successText: "Мы связываемся с владельцем. Пришлем уведомление в Telegram.",
-      workingHours: "10:00 — 22:00",
+      successText: "Мы уже связываемся с владельцем. Вы можете закрыть приложение, мы пришлем уведомление в Telegram.",
+      workingHours: "График: 10:00 — 22:00",
       close: "Закрыть", labelStart: "Начало", labelEnd: "Конец", total: "Дней:", sum: "Итого:"
     },
     en: { 
       back: "← Back", day: "1 day", month: "2+ days", 
       btn: "Book Now",
-      helmets: "2 helmets",
-      clean: "Clean",
+      helmets: "2 helmets included",
+      clean: "Perfectly clean condition",
       description: "Description",
-      transmission: "Trans",
+      transmission: "Transmission",
       modalSub: "Rental dates", submitBtn: "Send Request",
-      successTitle: "Sent", 
-      successText: "We are contacting the owner. Notification will be in Telegram.",
-      workingHours: "10:00 — 22:00",
+      successTitle: "Request Sent", 
+      successText: "We are contacting the owner. You can close the app; we will notify you via Telegram.",
+      workingHours: "Hours: 10:00 AM — 10:00 PM",
       close: "Close", labelStart: "Start", labelEnd: "End", total: "Days:", sum: "Total:"
     }
   };
@@ -163,6 +163,7 @@ export default function BikePage() {
 
   const gallery = [bike.image, ...(bike.images_gallery ? bike.images_gallery.split(',').map((s: string) => s.trim()) : [])];
 
+  // Логика свайпа
   const onTouchStart = (e: React.TouchEvent) => {
     touchStartX.current = e.targetTouches[0].clientX;
   };
@@ -172,8 +173,15 @@ export default function BikePage() {
   const onTouchEnd = () => {
     if (!touchStartX.current || !touchEndX.current) return;
     const distance = touchStartX.current - touchEndX.current;
-    if (distance > 50 && activePhotoIndex < gallery.length - 1) setActivePhotoIndex(prev => prev + 1);
-    if (distance < -50 && activePhotoIndex > 0) setActivePhotoIndex(prev => prev - 1);
+    const isLeftSwipe = distance > 50;
+    const isRightSwipe = distance < -50;
+
+    if (isLeftSwipe && activePhotoIndex < gallery.length - 1) {
+      setActivePhotoIndex(prev => prev + 1);
+    }
+    if (isRightSwipe && activePhotoIndex > 0) {
+      setActivePhotoIndex(prev => prev - 1);
+    }
     touchStartX.current = null;
     touchEndX.current = null;
   };
@@ -181,129 +189,162 @@ export default function BikePage() {
   return (
     <main className="min-h-screen bg-[#05070a] text-white font-sans flex flex-col items-center overflow-x-hidden">
       
-      <nav className="fixed top-0 w-full z-[100] bg-[#05070a]/90 backdrop-blur-md border-b border-white/5 h-12 flex items-center px-4">
-        <Link href="/" className="bg-white/5 border border-white/10 px-3 py-1 rounded-xl text-[9px] font-black uppercase tracking-tighter text-gray-300">
+      <nav className="fixed top-0 w-full z-[100] bg-[#05070a]/90 backdrop-blur-md border-b border-white/5 h-14 flex items-center px-4">
+        <Link href="/" className="bg-white/5 border border-white/10 px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-tighter text-gray-300">
           {t[lang].back}
         </Link>
       </nav>
 
-      <div className="w-full max-w-lg px-3 pt-14 pb-4">
+      <div className="w-full max-w-lg px-4 pt-20 pb-10">
         <div 
-          className="relative aspect-[4/3] w-full rounded-[1.5rem] overflow-hidden border border-white/5 shadow-2xl mb-3 bg-[#0f1117] touch-none"
+          className="relative aspect-[3/4] w-full rounded-[2.5rem] overflow-hidden border border-white/5 shadow-2xl mb-6 bg-[#0f1117] touch-none"
           onTouchStart={onTouchStart}
           onTouchMove={onTouchMove}
           onTouchEnd={onTouchEnd}
         >
+          {/* Main Photo Display with transition */}
           <div className="w-full h-full flex transition-transform duration-500 ease-out" style={{ transform: `translateX(-${activePhotoIndex * 100}%)` }}>
             {gallery.map((img, i) => (
               <img key={i} src={img} className="w-full h-full object-cover flex-shrink-0" alt={bike.model} />
             ))}
           </div>
-          <div className="absolute inset-0 pointer-events-none bg-gradient-to-t from-[#05070a] via-transparent to-transparent opacity-60" />
-          <div className="absolute bottom-4 left-4 pointer-events-none">
-              <h1 className="text-2xl font-black uppercase italic leading-none tracking-tighter drop-shadow-lg">{bike.model}</h1>
+
+          <div className="absolute inset-0 pointer-events-none bg-gradient-to-t from-[#05070a] via-transparent to-transparent opacity-80" />
+          <div className="absolute bottom-8 left-8 pointer-events-none">
+              <h1 className="text-4xl font-black uppercase italic leading-none tracking-tighter drop-shadow-lg">{bike.model}</h1>
           </div>
-          <div className="absolute bottom-3 right-4 flex gap-1">
+
+          {/* Pagination dots */}
+          <div className="absolute bottom-4 right-8 flex gap-1.5">
             {gallery.map((_, i) => (
-              <div key={i} className={`h-1 rounded-full transition-all duration-300 ${activePhotoIndex === i ? 'w-3 bg-green-500' : 'w-1 bg-white/30'}`} />
+              <div key={i} className={`h-1 rounded-full transition-all duration-300 ${activePhotoIndex === i ? 'w-4 bg-green-500' : 'w-1 bg-white/30'}`} />
             ))}
           </div>
         </div>
 
-        <div className="bg-[#0f1117] rounded-[1.5rem] border border-white/5 p-4 mb-4">
-          <div className="flex flex-wrap gap-1.5 mb-4">
-            <div className="flex items-center gap-1.5 bg-white/5 px-2 py-1 rounded-lg border border-white/10 text-gray-300 text-[8px] font-black uppercase">
-                <span className="w-1 h-1 rounded-full bg-green-500"></span> 
+        {/* Thumbnails */}
+        <div className="flex gap-3 overflow-x-auto pb-6 no-scrollbar px-2">
+          {gallery.map((img, idx) => (
+            <button 
+                key={idx} 
+                onClick={() => setActivePhotoIndex(idx)} 
+                className={`w-16 h-20 rounded-xl overflow-hidden flex-shrink-0 border-2 transition-all ${activePhotoIndex === idx ? 'border-green-500 scale-95' : 'border-transparent opacity-40'}`}
+            >
+              <img src={img} className="w-full h-full object-cover" alt="preview" />
+            </button>
+          ))}
+        </div>
+
+        <div className="bg-[#0f1117] rounded-[2.5rem] border border-white/5 p-6 mb-6">
+          <div className="flex flex-wrap gap-2 mb-6">
+            <div className="flex items-center gap-2 bg-white/5 px-3 py-1.5 rounded-lg border border-white/10 text-gray-300 text-[9px] font-black uppercase tracking-widest">
+                <span className="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]"></span> 
                 {t[lang].helmets}
             </div>
-            <div className="flex items-center gap-1.5 bg-white/5 px-2 py-1 rounded-lg border border-white/10 text-gray-300 text-[8px] font-black uppercase">
-                <span className="w-1 h-1 rounded-full bg-blue-500"></span> 
+            <div className="flex items-center gap-2 bg-white/5 px-3 py-1.5 rounded-lg border border-white/10 text-gray-300 text-[9px] font-black uppercase tracking-widest">
+                <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.6)]"></span> 
                 {t[lang].clean}
-            </div>
-            <div className="bg-green-500/10 px-2 py-1 rounded-lg border border-green-500/20 text-[8px] text-green-500 font-black uppercase">
-                {bike.engine}cc
-            </div>
-            <div className="bg-white/5 px-2 py-1 rounded-lg border border-white/10 text-[8px] text-white font-black uppercase">
-                {bike.transmission || 'Auto'}
             </div>
           </div>
 
-          <div className="mb-4 px-1">
-            <p className="text-[10px] text-gray-400 leading-snug font-medium line-clamp-3">
+          <div className="flex gap-2 mb-8">
+            <div className="bg-green-500/10 px-4 py-2 rounded-xl border border-green-500/20">
+                <p className="text-[7px] text-green-500/60 uppercase font-black mb-0.5">Engine</p>
+                <p className="text-[11px] text-green-500 font-black uppercase tracking-tighter">{bike.engine}cc</p>
+            </div>
+            <div className="bg-white/5 px-4 py-2 rounded-xl border border-white/10">
+                <p className="text-[7px] text-gray-500 uppercase font-black mb-0.5">{t[lang].transmission}</p>
+                <p className="text-[11px] text-white font-black uppercase tracking-tighter">{bike.transmission || 'Automatic'}</p>
+            </div>
+          </div>
+
+          <div className="mb-8 px-1">
+            <p className="text-[8px] text-gray-500 uppercase font-black tracking-[0.2em] mb-3">{t[lang].description}</p>
+            <p className="text-xs text-gray-400 leading-relaxed font-medium">
               {lang === 'ru' ? bike.description_ru : bike.description_en}
             </p>
           </div>
 
-          <div className="grid grid-cols-2 gap-2 mb-4">
-            <div className="bg-black/30 py-2 rounded-xl border border-white/5 text-center">
-                <p className="text-[7px] text-gray-500 uppercase font-bold">{t[lang].day}</p>
-                <p className="text-sm font-black italic">{bike.price_day}</p>
+          <div className="grid grid-cols-2 gap-3 mb-6">
+            <div className="bg-black/30 p-4 rounded-2xl border border-white/5 text-center">
+                <p className="text-[8px] text-gray-500 uppercase font-bold mb-1 tracking-widest">{t[lang].day}</p>
+                <p className="text-lg font-black italic">{bike.price_day}</p>
             </div>
-            <div className="bg-green-500/5 py-2 rounded-xl border border-green-500/10 text-center">
-                <p className="text-[7px] text-green-500/70 uppercase font-bold">{t[lang].month}</p>
-                <p className="text-sm font-black text-green-400 italic">{bike.price_2days || bike.price_day}</p>
+            <div className="bg-green-500/5 p-4 rounded-2xl border border-green-500/10 text-center">
+                <p className="text-[8px] text-green-500/70 uppercase font-bold mb-1 tracking-widest">{t[lang].month}</p>
+                <p className="text-lg font-black text-green-400 italic">{bike.price_2days || bike.price_day}</p>
             </div>
           </div>
 
           <button 
             onClick={() => {setShowModal(true); setIsSubmitted(false);}} 
-            className="w-full bg-green-600 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest text-white active:scale-[0.98] transition-all"
+            className="w-full bg-green-600 py-4 rounded-2xl font-black text-[11px] uppercase tracking-widest text-white shadow-lg active:scale-[0.98] transition-all"
           >
             {t[lang].btn}
           </button>
         </div>
       </div>
 
+      {/* MODAL */}
       {showModal && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/90 backdrop-blur-sm" onClick={() => setShowModal(false)} />
-          <div className="relative w-full max-w-sm bg-[#11141b] border border-white/10 rounded-[2rem] p-5 shadow-2xl animate-in fade-in zoom-in duration-200">
+          <div className="absolute inset-0 bg-black/95 backdrop-blur-md" onClick={() => setShowModal(false)} />
+          <div className="relative w-full max-w-sm bg-[#11141b] border border-white/10 rounded-[2.5rem] p-7 shadow-2xl animate-in fade-in zoom-in duration-200">
             {!isSubmitted ? (
               <form onSubmit={handleBooking}>
-                <div className="text-center mb-5">
-                    <h2 className="text-xl font-black uppercase italic leading-tight mb-1">{bike.model}</h2>
-                    <p className="text-[8px] text-gray-500 uppercase font-black">{t[lang].modalSub}</p>
+                <div className="text-center mb-8">
+                    <h2 className="text-2xl font-black uppercase italic leading-tight tracking-tighter mb-1">{bike.model}</h2>
+                    <p className="text-[9px] text-gray-500 uppercase font-black tracking-widest">{t[lang].modalSub}</p>
                 </div>
                 
-                <div className="grid grid-cols-2 gap-2 mb-4">
-                  <div className="bg-black/20 p-2 rounded-xl border border-white/5">
-                    <label className="text-[7px] text-gray-500 uppercase font-black mb-1 block">{t[lang].labelStart}</label>
+                <div className="grid grid-cols-2 gap-3 mb-6">
+                  <div className="bg-black/20 p-3 rounded-2xl border border-white/5">
+                    <label className="text-[8px] text-gray-500 uppercase font-black mb-1.5 block px-1">{t[lang].labelStart}</label>
                     <input required type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} 
-                    className="w-full bg-transparent text-white outline-none font-bold text-[10px]" style={{ colorScheme: 'dark' }} />
+                    className="w-full bg-transparent text-white outline-none font-bold text-xs" style={{ colorScheme: 'dark' }} />
                   </div>
-                  <div className="bg-black/20 p-2 rounded-xl border border-white/5">
-                    <label className="text-[7px] text-gray-500 uppercase font-black mb-1 block">{t[lang].labelEnd}</label>
+                  <div className="bg-black/20 p-3 rounded-2xl border border-white/5">
+                    <label className="text-[8px] text-gray-500 uppercase font-black mb-1.5 block px-1">{t[lang].labelEnd}</label>
                     <input required type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} 
-                    className="w-full bg-transparent text-white outline-none font-bold text-[10px]" style={{ colorScheme: 'dark' }} />
+                    className="w-full bg-transparent text-white outline-none font-bold text-xs" style={{ colorScheme: 'dark' }} />
                   </div>
                 </div>
 
-                <div className="bg-white/5 rounded-xl p-3 mb-5 border border-white/5 flex items-center justify-between">
+                <div className="bg-white/5 rounded-2xl p-4 mb-8 border border-white/5 flex items-center justify-between">
                    <div>
-                      <p className="text-[7px] text-gray-500 uppercase font-black">{t[lang].total}</p>
-                      <p className="text-sm font-black">{totalDays()} d</p>
+                      <p className="text-[8px] text-gray-500 uppercase font-black">{t[lang].total}</p>
+                      <p className="text-lg font-black">{totalDays()} d</p>
                    </div>
                    <div className="text-right">
-                      <p className="text-[7px] text-green-500 uppercase font-black">{t[lang].sum}</p>
-                      <p className="text-sm font-black text-green-500 tracking-tighter">{calculateTotalOrderPrice()} VND</p>
+                      <p className="text-[8px] text-green-500 uppercase font-black">{t[lang].sum}</p>
+                      <p className="text-lg font-black text-green-500 tracking-tighter">{calculateTotalOrderPrice()} VND</p>
                    </div>
                 </div>
 
                 <div className="flex gap-2">
-                  <button type="button" onClick={() => setShowModal(false)} className="flex-1 bg-white/5 py-3 rounded-xl text-[9px] font-black uppercase text-gray-400">Esc</button>
-                  <button type="submit" disabled={isSubmitting} className="flex-[3] bg-green-600 py-3 rounded-xl text-[9px] font-black uppercase text-white">
+                  <button type="button" onClick={() => setShowModal(false)} className="flex-1 bg-white/5 py-4 rounded-xl text-[10px] font-black uppercase text-gray-400 border border-white/5 active:scale-95 transition-all">{t[lang].close}</button>
+                  <button type="submit" disabled={isSubmitting} className="flex-[2] bg-green-600 py-4 rounded-xl text-[10px] font-black uppercase text-white shadow-lg active:scale-95 transition-all">
                     {isSubmitting ? '...' : t[lang].submitBtn}
                   </button>
                 </div>
               </form>
             ) : (
-              <div className="text-center py-2">
-                <div className="w-10 h-10 bg-green-500/10 border border-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-ping"></div>
+              <div className="text-center py-4">
+                <div className="w-12 h-12 bg-green-500/10 border border-green-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
+                    <div className="w-2 h-2 bg-green-500 rounded-full animate-ping"></div>
                 </div>
-                <h2 className="text-lg font-black mb-2 uppercase italic">{t[lang].successTitle}</h2>
-                <p className="text-gray-300 text-[10px] mb-6 leading-relaxed px-4">{t[lang].successText}</p>
-                <button onClick={() => setShowModal(false)} className="w-full bg-white/5 border border-white/10 py-3 rounded-xl text-[9px] font-black uppercase text-white">OK</button>
+                <h2 className="text-xl font-black mb-4 uppercase italic tracking-tight">{t[lang].successTitle}</h2>
+                <div className="space-y-4 mb-10 text-center">
+                    <p className="text-gray-300 text-[11px] leading-relaxed">
+                        {t[lang].successText}
+                    </p>
+                    <div className="bg-white/5 p-4 rounded-2xl border border-white/10">
+                        <p className="text-[9px] text-gray-500 font-black uppercase tracking-wider leading-relaxed">
+                            {t[lang].workingHours}
+                        </p>
+                    </div>
+                </div>
+                <button onClick={() => setShowModal(false)} className="w-full bg-white/5 border border-white/10 py-4 rounded-xl text-[10px] font-black uppercase text-white tracking-widest transition-all active:scale-95">OK</button>
               </div>
             )}
           </div>

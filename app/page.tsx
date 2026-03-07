@@ -67,7 +67,6 @@ export default function Home() {
     return () => clearInterval(interval);
   }, []);
 
-  // Логика фильтрации
   useEffect(() => {
     if (activeCategory === 'All') {
       setFilteredBikes(bikes);
@@ -85,10 +84,10 @@ export default function Home() {
 
   const categories = [
     { id: 'All', ru: 'Все', en: 'All' },
-    { id: 'Автомат', ru: 'Автомат', en: 'Auto' },
-    { id: 'Полуавтомат', ru: 'Полуавтомат', en: 'Semi-auto' },
-    { id: 'Электро', ru: 'Электро / Без прав', en: 'Electric' },
-    { id: 'Механика', ru: 'Механика', en: 'Manual' },
+    { id: 'Автомат', ru: 'Авто', en: 'Auto' },
+    { id: 'Полуавтомат', ru: 'Полу', en: 'Semi' },
+    { id: 'Электро', ru: 'Электро*', en: 'Elec*' },
+    { id: 'Механика', ru: 'Мех', en: 'Manual' },
   ];
 
   const t = {
@@ -97,21 +96,22 @@ export default function Home() {
       btn: "Подробнее", day: "1 сутки", month: "от 2 суток",
       rate: "Курс: 1$ ≈ 26k",
       close: "Закрыть", total: "Дней:", cc: "cc",
-      noBikes: "В этой категории пока нет байков"
+      noBikes: "В этой категории пока нет байков",
+      noLicense: "*Без прав"
     },
     en: { 
       title: "Scooter Rental", location: "Da Nang",
       btn: "Details", day: "1 day", month: "2+ days",
       rate: "Rate: 1$ ≈ 26k",
       close: "Close", total: "Days:", cc: "cc",
-      noBikes: "No bikes in this category yet"
+      noBikes: "No bikes in this category yet",
+      noLicense: "*No license"
     }
   };
 
   return (
     <main className="bg-[#05070a] min-h-screen text-white font-sans flex flex-col selection:bg-green-500/30">
       
-      {/* HEADER */}
       <nav className="fixed top-0 w-full z-[100] bg-[#05070a]/90 backdrop-blur-md border-b border-white/5 h-16 flex items-center justify-between px-4">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 bg-green-500 rounded-lg flex items-center justify-center text-lg shadow-[0_0_15px_rgba(34,197,94,0.3)]">🐉</div>
@@ -131,37 +131,37 @@ export default function Home() {
         </div>
       </nav>
 
-      {/* HERO & CATEGORIES */}
-      <section className="relative pt-24 pb-6 flex flex-col items-center justify-center text-center px-6">
-        <div className="absolute top-0 inset-0 z-0 h-[35vh]">
+      <section className="relative pt-24 pb-4 flex flex-col items-center justify-center text-center px-4">
+        <div className="absolute top-0 inset-0 z-0 h-[30vh]">
           <img src="https://static.vinwonders.com/2022/12/Dragon-Bridge-thumb.jpg" className="w-full h-full object-cover opacity-10" alt="Bridge" />
           <div className="absolute inset-0 bg-gradient-to-t from-[#05070a] via-transparent to-transparent" />
         </div>
         
-        <div className="relative z-10 mb-8">
-          <h1 className="text-3xl font-black uppercase italic tracking-tight">{t[lang].title}</h1>
+        <div className="relative z-10 mb-6">
+          <h1 className="text-2xl font-black uppercase italic tracking-tight">{t[lang].title}</h1>
           <p className="text-green-500 text-[10px] font-bold tracking-widest uppercase mt-1">{t[lang].location}</p>
         </div>
 
-        {/* CATEGORY TABS */}
-        <div className="relative z-10 w-full max-w-full overflow-x-auto no-scrollbar flex items-center gap-2 px-2 pb-2">
-          {categories.map((cat) => (
-            <button
-              key={cat.id}
-              onClick={() => setActiveCategory(cat.id)}
-              className={`px-5 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-tighter transition-all whitespace-nowrap border ${
-                activeCategory === cat.id 
-                ? 'bg-green-600 border-green-500 text-white shadow-[0_0_20px_rgba(34,197,94,0.2)] scale-105' 
-                : 'bg-white/5 border-white/5 text-gray-400 hover:text-white hover:bg-white/10'
-              }`}
-            >
-              {lang === 'ru' ? cat.ru : cat.en}
-            </button>
-          ))}
+        <div className="relative z-10 w-full max-w-md px-1">
+          <div className="grid grid-cols-5 gap-1.5 mb-2">
+            {categories.map((cat) => (
+              <button
+                key={cat.id}
+                onClick={() => setActiveCategory(cat.id)}
+                className={`py-2 rounded-xl text-[9px] font-black uppercase tracking-tighter transition-all border ${
+                  activeCategory === cat.id 
+                  ? 'bg-green-600 border-green-500 text-white shadow-[0_0_15px_rgba(34,197,94,0.2)]' 
+                  : 'bg-white/5 border-white/5 text-gray-400 hover:text-white'
+                }`}
+              >
+                {lang === 'ru' ? cat.ru : cat.en}
+              </button>
+            ))}
+          </div>
+          <p className="text-[8px] text-gray-500 font-bold uppercase tracking-widest">{t[lang].noLicense}</p>
         </div>
       </section>
 
-      {/* GRID */}
       <section className="max-w-7xl mx-auto px-3 pb-20 relative z-20 w-full">
         {loading ? (
           <div className="flex justify-center py-20"><div className="w-8 h-8 border-2 border-green-500 border-t-transparent rounded-full animate-spin" /></div>
@@ -173,29 +173,21 @@ export default function Home() {
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {filteredBikes.map((s) => (
               <div key={s.id} className="group bg-[#0f1117] rounded-[1.8rem] border border-white/5 overflow-hidden flex flex-col transition-all duration-300 hover:border-green-500/30 shadow-2xl">
-                
                 <Link href={`/bike/${s.id}`} className="relative aspect-[4/5] w-full overflow-hidden block">
-                  <img 
-                    src={s.image} 
-                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" 
-                    alt={s.model} 
-                  />
+                  <img src={s.image} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" alt={s.model} />
                   <div className="absolute bottom-2 right-2 bg-black/40 backdrop-blur-md px-1.5 py-0.5 rounded text-[7px] font-bold border border-white/10 text-white/60">
                     {s.year}
                   </div>
                 </Link>
-                
                 <div className="p-3 flex flex-col">
                   <div className="flex items-center gap-1.5 mb-1.5 text-[8px] font-black uppercase tracking-widest text-green-500/80">
                     <span>{s.transmission}</span>
                     <span className="w-1 h-1 bg-white/20 rounded-full" />
                     <span>{s.engine}{t[lang].cc}</span>
                   </div>
-
                   <h3 className="text-[13px] font-black uppercase italic tracking-tighter mb-3 leading-none truncate">
                     {s.model}
                   </h3>
-                  
                   <div className="grid grid-cols-2 gap-1.5 mb-4">
                     <div className="bg-white/5 rounded-lg p-1.5 border border-white/5">
                       <p className="text-[6px] text-gray-500 uppercase font-black mb-0.5">{t[lang].day}</p>
@@ -203,16 +195,10 @@ export default function Home() {
                     </div>
                     <div className="bg-green-500/5 rounded-lg p-1.5 border border-green-500/10">
                       <p className="text-[6px] text-green-500/50 uppercase font-black mb-0.5">{t[lang].month}</p>
-                      <p className="text-[9px] font-black text-green-400 tracking-tighter">
-                        {s.price_2days || s.price_day}
-                      </p>
+                      <p className="text-[9px] font-black text-green-400 tracking-tighter">{s.price_2days || s.price_day}</p>
                     </div>
                   </div>
-                  
-                  <Link 
-                    href={`/bike/${s.id}`}
-                    className="w-full bg-white text-black py-2.5 rounded-lg font-black text-[9px] uppercase transition-all active:scale-95 flex items-center justify-center hover:bg-green-500 hover:text-white shadow-lg"
-                  >
+                  <Link href={`/bike/${s.id}`} className="w-full bg-white text-black py-2.5 rounded-lg font-black text-[9px] uppercase transition-all active:scale-95 flex items-center justify-center hover:bg-green-500 hover:text-white shadow-lg">
                     {t[lang].btn}
                   </Link>
                 </div>
