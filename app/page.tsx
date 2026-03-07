@@ -83,11 +83,10 @@ export default function Home() {
   };
 
   const categories = [
-    { id: 'All', ru: 'Все', en: 'All' },
-    { id: 'Автомат', ru: 'Авто', en: 'Auto' },
-    { id: 'Полуавтомат', ru: 'Полу', en: 'Semi' },
+    { id: 'Автомат', ru: 'Автомат', en: 'Auto' },
+    { id: 'Полуавтомат', ru: 'Полуавто', en: 'Semi' },
     { id: 'Электро', ru: 'Электро*', en: 'Elec*' },
-    { id: 'Механика', ru: 'Мех', en: 'Manual' },
+    { id: 'Механика', ru: 'Механика', en: 'Manual' },
   ];
 
   const t = {
@@ -97,7 +96,7 @@ export default function Home() {
       rate: "Курс: 1$ ≈ 26k",
       close: "Закрыть", total: "Дней:", cc: "cc",
       noBikes: "В этой категории пока нет байков",
-      noLicense: "*Без прав"
+      noLicense: "*Электро — можно без прав"
     },
     en: { 
       title: "Scooter Rental", location: "Da Nang",
@@ -105,7 +104,7 @@ export default function Home() {
       rate: "Rate: 1$ ≈ 26k",
       close: "Close", total: "Days:", cc: "cc",
       noBikes: "No bikes in this category yet",
-      noLicense: "*No license"
+      noLicense: "*Electric — no license needed"
     }
   };
 
@@ -138,19 +137,19 @@ export default function Home() {
         </div>
         
         <div className="relative z-10 mb-6">
-          <h1 className="text-2xl font-black uppercase italic tracking-tight">{t[lang].title}</h1>
+          <h1 className="text-2xl font-black uppercase italic tracking-tight" onClick={() => setActiveCategory('All')} style={{cursor: 'pointer'}}>{t[lang].title}</h1>
           <p className="text-green-500 text-[10px] font-bold tracking-widest uppercase mt-1">{t[lang].location}</p>
         </div>
 
         <div className="relative z-10 w-full max-w-md px-1">
-          <div className="grid grid-cols-5 gap-1.5 mb-2">
+          <div className="grid grid-cols-4 gap-1.5 mb-2">
             {categories.map((cat) => (
               <button
                 key={cat.id}
-                onClick={() => setActiveCategory(cat.id)}
+                onClick={() => setActiveCategory(activeCategory === cat.id ? 'All' : cat.id)}
                 className={`py-2 rounded-xl text-[9px] font-black uppercase tracking-tighter transition-all border ${
                   activeCategory === cat.id 
-                  ? 'bg-green-600 border-green-500 text-white shadow-[0_0_15px_rgba(34,197,94,0.2)]' 
+                  ? 'bg-green-600 border-green-500 text-white shadow-[0_0_15px_rgba(34,197,94,0.2)] scale-[1.02]' 
                   : 'bg-white/5 border-white/5 text-gray-400 hover:text-white'
                 }`}
               >
