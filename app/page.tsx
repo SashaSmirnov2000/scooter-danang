@@ -70,6 +70,13 @@ export default function Home() {
   useEffect(() => {
     if (activeCategory === 'All') {
       setFilteredBikes(bikes);
+    } else if (activeCategory === 'Электро') {
+      // Логика: Электро ИЛИ (Полуавтомат + 50сс)
+      const filtered = bikes.filter(bike => 
+        bike.transmission === 'Электро' || 
+        (bike.transmission === 'Полуавтомат' && Number(bike.engine) === 50)
+      );
+      setFilteredBikes(filtered);
     } else {
       const filtered = bikes.filter(bike => bike.transmission === activeCategory);
       setFilteredBikes(filtered);
@@ -86,7 +93,7 @@ export default function Home() {
     { id: 'Автомат', ru: 'Автомат', en: 'Auto' },
     { id: 'Полуавтомат', ru: 'Полуавто', en: 'Semi' },
     { id: 'Механика', ru: 'Механика', en: 'Manual' },
-    { id: 'Электро', ru: 'Электро / Без прав', en: 'Electric / No license' },
+    { id: 'Электро', ru: 'Электро / Без прав', en: 'Elec / No license' },
   ];
 
   const t = {
@@ -147,9 +154,9 @@ export default function Home() {
                 onClick={() => setActiveCategory(activeCategory === cat.id ? 'All' : cat.id)}
                 className={`px-3 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-tighter transition-all border shrink-0 ${
                   activeCategory === cat.id 
-                  ? 'bg-green-600 border-green-500 text-white shadow-[0_0_15px_rgba(34,197,94,0.2)]' 
+                  ? 'bg-green-600 border-green-500 text-white shadow-[0_0_15px_rgba(34,197,94,0.2)] scale-[1.02]' 
                   : 'bg-white/5 border-white/5 text-gray-400 hover:text-white hover:bg-white/10'
-                } ${cat.id === 'Электро' ? 'flex-[1.5] min-w-[140px]' : 'flex-1 min-w-[80px]'}`}
+                } ${cat.id === 'Электро' ? 'flex-[1.5] min-w-[150px]' : 'flex-1 min-w-[80px]'}`}
               >
                 {lang === 'ru' ? cat.ru : cat.en}
               </button>
