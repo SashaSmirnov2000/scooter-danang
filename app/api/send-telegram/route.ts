@@ -5,7 +5,10 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
     const botToken = process.env.TELEGRAM_BOT_TOKEN;
-    const MY_ADMIN_ID = 1920798985;
+    
+    // БЕРЕМ ID ИЗ VERCEL (TELEGRAM_CHAT_ID) ИЛИ ИСПОЛЬЗУЕМ ВАШ ПРЯМОЙ ID
+    const MY_ADMIN_ID = Number(process.env.TELEGRAM_CHAT_ID) || 1920798985;
+    
     const SUPPORT_LINK = "https://t.me/dragonservicesupport";
 
     const supabase = createClient(
@@ -19,7 +22,7 @@ export async function POST(req: Request) {
     if (body.callback_query) {
       const callbackId = body.callback_query.id;
       const callbackData = body.callback_query.data;
-      const chatId = body.callback_query.message.chat.id;
+      const chatId = Number(body.callback_query.message.chat.id);
       const messageId = body.callback_query.message.message_id;
       const oldText = body.callback_query.message.text || "";
 
@@ -123,7 +126,6 @@ export async function POST(req: Request) {
         return NextResponse.json({ ok: true });
       }
       
-      // Логика отмены пользователем
       if (callbackData.startsWith('cancel_order_')) {
         const bikeId = callbackData.replace('cancel_order_', '');
         await supabase.from('bookings').update({ status: 'cancelled' }).eq('telegram_id', chatId).eq('bike_id', bikeId).order('created_at', { ascending: false }).limit(1);
@@ -143,12 +145,11 @@ export async function POST(req: Request) {
 
     // --- 1. ЛОГИКА СООБЩЕНИЙ ---
     if (body.message) {
-      const chatId = body.message.chat.id;
+      const chatId = Number(body.message.chat.id);
       const text = body.message.text || '';
 
-      // ПРИОРИТЕТ АДМИНА
+      // ПРОВЕРКА АДМИНА (Используем числовое сравнение)
       if (chatId === MY_ADMIN_ID) {
-        // Ответ на сообщение (Reply)
         if (body.message.reply_to_message) {
           const replySourceText = body.message.reply_to_message.text || "";
           const idMatch = replySourceText.match(/(?:№|заказа\s+)(\d+)/i);
@@ -173,7 +174,6 @@ export async function POST(req: Request) {
           }
         }
 
-        // Команда /admin
         if (text === '/admin') {
           const { data: orders } = await supabase.from('bookings').select('*').order('created_at', { ascending: false }).limit(5);
           if (!orders || orders.length === 0) {
@@ -199,7 +199,6 @@ export async function POST(req: Request) {
         }
       }
 
-      // ОБЩАЯ ЛОГИКА ДЛЯ ВСЕХ (только если это /start)
       if (text.startsWith('/start')) {
           const welcomeMessage = `✨ **Добро пожаловать в каталог байков Дананга!**\n\nНаш сервис помогает вам арендовать транспорт за несколько кликов без лишних заморочек. 🛵\n\n---\n✨ **Welcome to the Da Nang Bike Catalog!**\n\nOur service helps you rent transport in a few clicks without any hassle. 2026\n\n🤝 **Менеджер / Support:** @dragonservicesupport`;
           
@@ -216,7 +215,7 @@ export async function POST(req: Request) {
       }
     }
 
-    // --- 2. ЛОГИКА НОВОГО ЗАКАЗА (WebApp) ---
+    // --- 2. ЛОГИКА НОВОГО ЗАКАЗА ---
     const { bike_model, start_date, end_date, client_username, telegram_id, bike_id, total_price } = body;
     if (bike_model && telegram_id) {
       let finalReferrer = body.referrer;
