@@ -29,17 +29,31 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
     const token = process.env.TELEGRAM_BOT_TOKEN!;
+    const MY_ADMIN_ID = 1920798985; // ID админа для игнорирования
     
-    // Поддержка и обычных сообщений, и нажатий на кнопки (callback)
+    // 1. Если это админ — полностью игнорируем этот роут, чтобы не мешать админ-панели
+    const userId = body.callback_query?.from?.id || body.message?.from?.id;
+    if (userId === MY_ADMIN_ID) {
+      return NextResponse.json({ ok: true });
+    }
+
+    // 2. Если это callback от кнопок управления (confirm_, decline_, manage_) — игнорируем
+    const callbackData = body.callback_query?.data || "";
+    if (callbackData.startsWith('manage_') || 
+        callbackData.startsWith('confirm_') || 
+        callbackData.startsWith('decline_') || 
+        callbackData.startsWith('ask_msg_')) {
+      return NextResponse.json({ ok: true });
+    }
+
     const message = body.message || body.callback_query?.message;
     const chatId = message?.chat?.id;
-    const userId = body.callback_query?.from?.id || body.message?.from?.id;
     const text = body.message?.text || "";
     const username = (body.message?.from?.username || body.callback_query?.from?.username) || "anonymous";
 
     if (!chatId) return NextResponse.json({ ok: true });
 
-    // 1. Логика старта и записи реферала
+    // Логика старта и записи реферала
     if (text.startsWith('/start')) {
       const parts = text.split(' ');
       const startParam = parts.length > 1 ? parts[1] : 'direct';
@@ -51,11 +65,10 @@ export async function POST(req: Request) {
       }, { onConflict: 'telegram_id' });
     }
 
-    // 2. Проверка подписки
+    // Проверка подписки
     const isSubscribed = await checkSubscription(token, userId);
 
     if (!isSubscribed) {
-      // СООБЩЕНИЕ ДЛЯ НЕПОДПИСАННЫХ (Блокирующее)
       const subscribeNotice = 
         "**Для доступа к каталогу необходимо подписаться на наш канал**\n\n" +
         "Пожалуйста, подпишитесь на канал и нажмите кнопку проверки ниже.\n\n" +
@@ -82,35 +95,37 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true });
     }
 
-    // 3. СООБЩЕНИЕ ДЛЯ ПОДПИСАННЫХ (Каталог доступен)
-    const welcomeMessage = 
-      "**Добро пожаловать в каталог байков Дананга!**\n" +
-      "Мы предоставляем качественный сервис без лишних заморочек. Выбирайте и бронируйте в один клик!\n\n" +
-      "🆘 По возникшим вопросам пишите менеджеру: @dragonservicesupport\n\n" +
-      "--- \n\n" +
-      "**Welcome to the Danang bike catalog!**\n" +
-      "We provide high-quality service without any hassle. Choose and book in one click!\n\n" +
-      "🆘 For any questions, please contact our manager: @dragonservicesupport";
+    // Если человек подписан и это был просто клик по кнопке "Проверить"
+    // Или это команда /start
+    if (text.startsWith('/start') || callbackData === "check_sub") {
+      const welcomeMessage = 
+        "**Добро пожаловать в каталог байков Дананга!**\n" +
+        "Мы предоставляем качественный сервис без лишних заморочек. Выбирайте и бронируйте в один клик!\n\n" +
+        "🆘 По возникшим вопросам пишите менеджеру: @dragonservicesupport\n\n" +
+        "--- \n\n" +
+        "**Welcome to the Danang bike catalog!**\n" +
+        "We provide high-quality service without any hassle. Choose and book in one click!\n\n" +
+        "🆘 For any questions, please contact our manager: @dragonservicesupport";
 
-    const catalogKeyboard = [
-      [{ 
-        text: "🛵 Open Catalog / Открыть каталог", 
-        web_app: { url: "https://scooter-danang.vercel.app" } 
-      }]
-    ];
+      const catalogKeyboard = [
+        [{ 
+          text: "🛵 Open Catalog / Открыть каталог", 
+          web_app: { url: "https://scooter-danang.vercel.app" } 
+        }]
+      ];
 
-    await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: chatId,
-        text: welcomeMessage,
-        parse_mode: "Markdown",
-        reply_markup: { inline_keyboard: catalogKeyboard }
-      }),
-    });
+      await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text: welcomeMessage,
+          parse_mode: "Markdown",
+          reply_markup: { inline_keyboard: catalogKeyboard }
+        }),
+      });
+    }
 
-    // Если это был callback (нажатие кнопки проверки), закрываем уведомление в ТГ
     if (body.callback_query) {
       await fetch(`https://api.telegram.org/bot${token}/answerCallbackQuery`, {
         method: 'POST',
@@ -123,8 +138,4 @@ export async function POST(req: Request) {
   } catch (error) {
     return NextResponse.json({ ok: false });
   }
-}
-
-export async function GET() {
-  return NextResponse.json({ status: "alive" });
 }
