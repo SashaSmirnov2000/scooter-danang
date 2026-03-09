@@ -7,21 +7,17 @@ async function checkSubscription(botToken: string, userId: number) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        chat_id: "@dragonindanang", // Если не сработает, заменим на ID ниже
+        chat_id: "@dragonindanang", 
         user_id: userId
       })
     });
     
     const data = await response.json();
     
-    // ЛОГ ДЛЯ ПРОВЕРКИ (посмотрите его в логах сервера)
-    console.log(`Проверка пользователя ${userId}:`, data);
-
     if (!data.ok) return false;
     
     const status = data.result?.status;
     
-    // Если статус 'left' или 'kicked' — пользователь НЕ подписан
     if (status === 'left' || status === 'kicked') {
       return false;
     }
@@ -49,29 +45,30 @@ export async function POST(req: Request) {
       const parts = text.split(' ');
       const startParam = parts.length > 1 ? parts[1] : 'direct';
 
+      // Сохраняем пользователя и реферала в базу
       await supabase.from('users').upsert({ 
         telegram_id: chatId, 
         referrer: startParam, 
         username: username 
       }, { onConflict: 'telegram_id' });
 
-      // Вызываем проверку для текущего chatId клиента
       const isSubscribed = await checkSubscription(token, chatId);
 
+      // Сообщения без флагов
       let welcomeMessage = 
-        "🇷🇺 **Добро пожаловать в каталог байков Дананга!**\n" +
+        "**Добро пожаловать в каталог байков Дананга!**\n" +
         "Мы предоставляем качественный сервис без лишних заморочек. Выбирайте и бронируйте в один клик!\n\n" +
         "🆘 По возникшим вопросам пишите менеджеру: @dragonservicesupport\n\n" +
         "--- \n\n" +
-        "🇬🇧 **Welcome to the Danang bike catalog!**\n" +
+        "**Welcome to the Danang bike catalog!**\n" +
         "We provide high-quality service without any hassle. Choose and book in one click!\n\n" +
         "🆘 For any questions, please contact our manager: @dragonservicesupport";
 
       if (!isSubscribed) {
         welcomeMessage += "\n\n" +
           "⚠️ **Внимание / Attention**\n" +
-          "🇷🇺 Пожалуйста, подпишитесь на наш канал, чтобы получить доступ к каталогу:\n" +
-          "🇬🇧 Please subscribe to our channel to get access to the catalog:\n" +
+          "Пожалуйста, подпишитесь на наш канал, чтобы получить доступ к каталогу:\n" +
+          "Please subscribe to our channel to get access to the catalog:\n" +
           "👉 https://t.me/dragonindanang";
       }
 

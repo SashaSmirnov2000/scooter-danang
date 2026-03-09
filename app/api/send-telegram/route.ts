@@ -60,7 +60,7 @@ export async function POST(req: Request) {
             reply_markup: {
               inline_keyboard: [
                 [{ text: "✅ Подтвердить наличие", callback_data: `confirm_${orderId}` }],
-                [{ text: "❌ Нет мест", callback_data: `decline_${orderId}` }],
+                [{ text: "❌ Нет в наличии", callback_data: `decline_${orderId}` }],
                 [{ text: "✉️ Написать клиенту", callback_data: `ask_msg_${orderId}` }]
               ]
             }
@@ -74,13 +74,17 @@ export async function POST(req: Request) {
         const { data: order } = await supabase.from('bookings').select('*').eq('id', id).single();
         if (order && order.status !== 'confirmed') {
           await supabase.from('bookings').update({ status: 'confirmed' }).eq('id', id);
+          
+          const confirmText = `✅ **Наличие байка подтверждено!**\nОтправьте пожалуйста любое сообщение менеджеру, он отправит детали.\n\n---\n✅ **Bike availability confirmed!**\nPlease send any message to the manager, they will send the details.`;
+          
           await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, { 
             method: 'POST', 
             headers: { 'Content-Type': 'application/json' }, 
             body: JSON.stringify({
               chat_id: Number(order.telegram_id),
-              text: `🎉 **Ваше бронирование подтверждено!**\n\nБайк: ${order.bike_model}\n📍 Мы на карте: ${GOOGLE_MAPS_LINK}\n\n---\n🎉 **Your booking is confirmed!**\n\nBike: ${order.bike_model}\n📍 Location: ${GOOGLE_MAPS_LINK}`,
-              parse_mode: "Markdown"
+              text: confirmText,
+              parse_mode: "Markdown",
+              reply_markup: { inline_keyboard: [[{ text: "✉️ Написать менеджеру / Message manager", url: SUPPORT_LINK }]] }
             })
           });
           await fetch(`https://api.telegram.org/bot${botToken}/editMessageText`, { 
@@ -102,15 +106,18 @@ export async function POST(req: Request) {
         const { data: order } = await supabase.from('bookings').select('*').eq('id', id).single();
         if (order && order.status !== 'unavailable') {
           await supabase.from('bookings').update({ status: 'unavailable' }).eq('id', id);
+          
+          const declineText = `❌ **К сожалению, владелец не подтвердил ваш цвет либо модель байка.**\nМы уже подобрали для вас схожие варианты, напишите менеджеру любое сообщение, он отправит варианты.\n\n---\n❌ **Unfortunately, the owner did not confirm your color or bike model.**\nWe have already selected similar options for you, send any message to the manager and they will send the options.`;
+          
           await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, { 
             method: 'POST', 
             headers: { 'Content-Type': 'application/json' }, 
             body: JSON.stringify({
               chat_id: Number(order.telegram_id),
-              text: `😔 **Ваше бронирование не подтверждено.**\n\nК сожалению, этот байк уже занят. Мы подберем для вас похожие варианты и скоро пришлем!\n\n---\n😔 **Your booking was not confirmed.**\n\nUnfortunately, this bike is already taken. We will find similar options for you soon!`,
+              text: declineText,
               parse_mode: "Markdown",
               reply_markup: {
-                inline_keyboard: [[{ text: "🤝 Написать менеджеру / Support", url: SUPPORT_LINK }]]
+                inline_keyboard: [[{ text: "🤝 Написать менеджеру / Message manager", url: SUPPORT_LINK }]]
               }
             })
           });
@@ -179,13 +186,19 @@ export async function POST(req: Request) {
 
       if (text === '/admin' && chatId === MY_ADMIN_ID) {
         const { data: orders } = await supabase.from('bookings').select('*').order('created_at', { ascending: false }).limit(5);
+        if (!orders || orders.length === 0) {
+            await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ chat_id: MY_ADMIN_ID, text: "Заявок пока нет." })
+            });
+        }
         for (const o of orders || []) {
-          const statusIcon = o.status === 'confirmed' ? '✅' : o.status === 'cancelled' ? '❌' : '⏳';
+          const statusIcon = o.status === 'confirmed' ? '✅' : o.status === 'cancelled' ? '❌' : o.status === 'unavailable' ? '🚫' : '⏳';
           await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               chat_id: MY_ADMIN_ID,
-              text: `${statusIcon} **Заказ №${o.id}**\nБайк: ${o.bike_model}\nДаты: ${o.start_date} - ${o.end_date}\nСумма: ${o.total_price || '—'}\nКлиент: @${o.client_username}`,
+              text: `${statusIcon} **Заказ №${o.id}**\nБайк: ${o.bike_model}\nДаты: ${o.start_date} - ${o.end_date}\nСумма: ${o.total_price || '—'}\nКлиент: @${o.client_username}\nРеферал: ${o.referrer || 'Прямой заход'}`,
               parse_mode: "Markdown",
               reply_markup: { inline_keyboard: [[{ text: "⚙️ Управлять", callback_data: `manage_${o.id}` }]] }
             })
@@ -194,34 +207,37 @@ export async function POST(req: Request) {
         return NextResponse.json({ ok: true });
       }
 
-      const welcomeMessage = `✨ **Добро пожаловать в каталог байков Дананга!**\n\nНаш сервис помогает вам арендовать транспорт за несколько кликов без лишних заморочек. 🛵\n\n---\n✨ **Welcome to the Da Nang Bike Catalog!**\n\nOur service helps you rent transport in a few clicks without any hassle. 🛵\n\n🤝 **Менеджер / Support:** @dragonservicesupport`;
-      
-      await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, { 
-        method: 'POST', 
-        headers: { 'Content-Type': 'application/json' }, 
-        body: JSON.stringify({
-          chat_id: chatId, 
-          text: welcomeMessage, 
-          parse_mode: "Markdown",
-          reply_markup: { inline_keyboard: [[{ text: "🛵 Открыть каталог / Open Catalog", web_app: { url: "https://scooter-danang.vercel.app" } }]] }
-        })
-      });
-      return NextResponse.json({ ok: true });
+      if (text.startsWith('/start')) {
+          const welcomeMessage = `✨ **Добро пожаловать в каталог байков Дананга!**\n\nНаш сервис помогает вам арендовать транспорт за несколько кликов без лишних заморочек. 🛵\n\n---\n✨ **Welcome to the Da Nang Bike Catalog!**\n\nOur service helps you rent transport in a few clicks without any hassle. 🛵\n\n🤝 **Менеджер / Support:** @dragonservicesupport`;
+          
+          await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, { 
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json' }, 
+            body: JSON.stringify({
+              chat_id: chatId, 
+              text: welcomeMessage, 
+              parse_mode: "Markdown",
+              reply_markup: { inline_keyboard: [[{ text: "🛵 Открыть каталог / Open Catalog", web_app: { url: "https://scooter-danang.vercel.app" } }]] }
+            })
+          });
+          return NextResponse.json({ ok: true });
+      }
     }
 
     // --- 2. ЛОГИКА НОВОГО ЗАКАЗА ---
-    const { bike_model, start_date, end_date, client_username, telegram_id, bike_id, total_price } = body;
+    const { bike_model, start_date, end_date, client_username, telegram_id, bike_id, total_price, referrer } = body;
     if (bike_model && telegram_id) {
       const { data: newOrder } = await supabase.from('bookings').insert([{
-        bike_id, bike_model, start_date, end_date, client_username, telegram_id, status: 'pending', total_price
+        bike_id, bike_model, start_date, end_date, client_username, telegram_id, status: 'pending', total_price, referrer
       }]).select().single();
 
-      // Уведомление админу (на русском + сумма)
+      // Уведомление админу
       await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           chat_id: MY_ADMIN_ID, 
-          text: `🔔 **НОВЫЙ ЗАКАЗ №${newOrder?.id}**\n\n**Байк:** ${bike_model}\n**Даты:** ${start_date} — ${end_date}\n**Сумма:** ${total_price || 'Не указана'}\n**Клиент:** @${client_username}`, 
+          text: `🔔 **НОВЫЙ ЗАКАЗ №${newOrder?.id}**\n\n**Байк:** ${bike_model}\n**Даты:** ${start_date} — ${end_date}\n**Сумма:** ${total_price || 'Не указана'}\n**Клиент:** @${client_username}\n**Реферал:** ${referrer || 'Прямой заход'}`, 
+          parse_mode: 'Markdown',
           reply_markup: { inline_keyboard: [[{ text: "⚙️ Управлять заказом", callback_data: `manage_${newOrder?.id}` }]] }
         }),
       });
