@@ -15,6 +15,10 @@ export default function Home() {
     const savedLang = localStorage.getItem('userLang') as 'ru' | 'en';
     if (savedLang) setLang(savedLang);
 
+    // Восстановление категории при возврате назад
+    const savedCategory = sessionStorage.getItem('activeCategory');
+    if (savedCategory) setActiveCategory(savedCategory);
+
     const initRefLogic = () => {
       const tg = (window as any).Telegram?.WebApp;
       const urlParams = new URLSearchParams(window.location.search);
@@ -56,11 +60,9 @@ export default function Home() {
       const { data, error } = await supabase
         .from('scooters') 
         .select('*')
-        // ИЗМЕНЕНО: сортировка по sort_order вместо даты создания
         .order('sort_order', { ascending: true });
       if (!error) {
         setBikes(data || []);
-        setFilteredBikes(data || []);
       }
       setLoading(false);
     }
@@ -68,7 +70,10 @@ export default function Home() {
     return () => clearInterval(interval);
   }, []);
 
+  // Логика фильтрации и сохранения категории
   useEffect(() => {
+    sessionStorage.setItem('activeCategory', activeCategory);
+    
     if (activeCategory === 'All') {
       setFilteredBikes(bikes);
     } else if (activeCategory === 'Электро') {
@@ -99,7 +104,7 @@ export default function Home() {
 
   const t = {
     ru: { 
-      title: "Аренда скутеров", location: "Дананг, Вьетнам",
+      title: "Аренда скутеров и мотоциклов", location: "Дананг, Вьетнам",
       btn: "Подробнее", day: "1 сутки", month: "от 2 суток",
       rate: "Курс: 1$ ≈ 26k",
       close: "Закрыть", total: "Дней:", cc: "cc",
@@ -107,7 +112,7 @@ export default function Home() {
       badgeNoLicense: "Без прав"
     },
     en: { 
-      title: "Scooter Rental", location: "Da Nang",
+      title: "Rent scooters and motorcycles", location: "Da Nang",
       btn: "Details", day: "1 day", month: "2+ days",
       rate: "Rate: 1$ ≈ 26k",
       close: "Close", total: "Days:", cc: "cc",
@@ -118,7 +123,6 @@ export default function Home() {
 
   return (
     <main className="bg-[#05070a] min-h-screen text-white font-sans flex flex-col selection:bg-green-500/30">
-      
       <nav className="fixed top-0 w-full z-[100] bg-[#05070a]/90 backdrop-blur-md border-b border-white/5 h-16 flex items-center justify-between px-4">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 bg-green-500 rounded-lg flex items-center justify-center text-lg shadow-[0_0_15px_rgba(34,197,94,0.3)]">🐉</div>
@@ -181,7 +185,6 @@ export default function Home() {
               <div key={s.id} className="group bg-[#0f1117] rounded-[1.8rem] border border-white/5 overflow-hidden flex flex-col transition-all duration-300 hover:border-green-500/30 shadow-2xl">
                 <Link href={`/bike/${s.id}`} className="relative aspect-[4/5] w-full overflow-hidden block">
                   <img src={s.image} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" alt={s.model} />
-                  
                   <div className="absolute top-2 left-2 flex flex-col gap-1">
                     {s.no_license && (
                       <div className="bg-green-500 text-black px-2 py-1 rounded-md text-[7px] font-black uppercase tracking-tighter shadow-lg">
@@ -189,7 +192,6 @@ export default function Home() {
                       </div>
                     )}
                   </div>
-
                   <div className="absolute bottom-2 right-2 bg-black/40 backdrop-blur-md px-1.5 py-0.5 rounded text-[7px] font-bold border border-white/10 text-white/60">
                     {s.year}
                   </div>
