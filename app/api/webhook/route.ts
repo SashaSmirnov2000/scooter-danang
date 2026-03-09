@@ -1,5 +1,17 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/app/supabase';
+import { createClient } from '@supabase/supabase-js';
+
+const MY_ADMIN_ID = 1920798985;
+const SUPPORT_LINK = "https://t.me/dragonservicesupport";
+
+async function tgPost(botToken: string, method: string, body: object) {
+  return fetch(`https://api.telegram.org/bot${botToken}/${method}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+}
 
 async function checkSubscription(botToken: string, userId: number) {
   try {
@@ -13,133 +25,341 @@ async function checkSubscription(botToken: string, userId: number) {
     const status = data.result?.status;
     if (status === 'left' || status === 'kicked') return false;
     return ['member', 'administrator', 'creator'].includes(status);
-  } catch (e) {
+  } catch {
     return false;
   }
 }
-
-// Все callback_data, которые обрабатывает ПЕРВЫЙ файл (route с заказами)
-const ORDER_CALLBACKS = ['manage_', 'confirm_', 'decline_', 'ask_msg_', 'cancel_order_'];
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
     const token = process.env.TELEGRAM_BOT_TOKEN!;
 
-    const callbackData = body.callback_query?.data as string | undefined;
+    // Используем service role для админских операций
+    const supabaseAdmin = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
 
-    // ── Если это callback от заказов — этот файл его НЕ трогает ──────────────
-    if (callbackData && ORDER_CALLBACKS.some(prefix => callbackData.startsWith(prefix))) {
-      return NextResponse.json({ ok: true });
-    }
+    if (!token) return NextResponse.json({ error: "No Token" }, { status: 500 });
 
-    const message = body.message || body.callback_query?.message;
-    const chatId = message?.chat?.id;
-    const userId = body.callback_query?.from?.id || body.message?.from?.id;
-    const text = body.message?.text || "";
-    const username = body.message?.from?.username || body.callback_query?.from?.username || "anonymous";
+    // ═══════════════════════════════════════════════════════════════
+    // БЛОК 1: CALLBACK QUERIES (нажатия на кнопки)
+    // ═══════════════════════════════════════════════════════════════
+    if (body.callback_query) {
+      const callbackId = body.callback_query.id;
+      const callbackData = body.callback_query.data as string;
+      const chatId = body.callback_query.message.chat.id;
+      const messageId = body.callback_query.message.message_id;
+      const oldText = body.callback_query.message.text || "";
 
-    if (!chatId) return NextResponse.json({ ok: true });
+      const answerCallback = () =>
+        tgPost(token, 'answerCallbackQuery', { callback_query_id: callbackId });
 
-    // ── /start: запись реферала ───────────────────────────────────────────────
-    if (text.startsWith('/start')) {
-      const parts = text.split(' ');
-      const startParam = parts.length > 1 ? parts[1] : 'direct';
-      await supabase.from('users').upsert(
-        { telegram_id: chatId, referrer: startParam, username },
-        { onConflict: 'telegram_id' }
-      );
-    }
+      // ── check_sub: проверка подписки на канал ──────────────────────────────
+      if (callbackData === 'check_sub') {
+        const userId = body.callback_query.from.id;
+        const isSubscribed = await checkSubscription(token, userId);
 
-    // ── Если это НЕ /start и НЕ check_sub — ничего не делаем ─────────────────
-    // (Чтобы случайные сообщения не триггерили приветствие)
-    const isCheckSub = callbackData === 'check_sub';
-    const isStart = text.startsWith('/start');
+        if (!isSubscribed) {
+          await answerCallback();
+          await tgPost(token, 'sendMessage', {
+            chat_id: chatId,
+            text:
+              "**Вы ещё не подписались на канал.**\n\nПожалуйста, подпишитесь и попробуйте снова.\n\n---\n\n**You haven't subscribed yet.**\n\nPlease subscribe and try again.",
+            parse_mode: "Markdown",
+            reply_markup: {
+              inline_keyboard: [
+                [{ text: "📢 Subscribe / Подписаться", url: "https://t.me/dragonindanang" }],
+                [{ text: "🔄 Проверить подписку / Check subscription", callback_data: "check_sub" }]
+              ]
+            }
+          });
+          return NextResponse.json({ ok: true });
+        }
 
-    if (!isStart && !isCheckSub) {
-      // Если это callback — просто закрываем уведомление в ТГ и выходим
-      if (body.callback_query) {
-        await fetch(`https://api.telegram.org/bot${token}/answerCallbackQuery`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ callback_query_id: body.callback_query.id })
-        });
-      }
-      return NextResponse.json({ ok: true });
-    }
-
-    // ── Проверка подписки ─────────────────────────────────────────────────────
-    const isSubscribed = await checkSubscription(token, userId);
-
-    if (!isSubscribed) {
-      const subscribeNotice =
-        "**Для доступа к каталогу необходимо подписаться на наш канал**\n\n" +
-        "Пожалуйста, подпишитесь на канал и нажмите кнопку проверки ниже.\n\n" +
-        "---\n\n" +
-        "**To use our catalog, please subscribe to our channel**\n\n" +
-        "Please subscribe to the channel and click the verification button below.";
-
-      await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+        // Подписан — показываем каталог
+        await answerCallback();
+        await tgPost(token, 'sendMessage', {
           chat_id: chatId,
-          text: subscribeNotice,
+          text:
+            "**Добро пожаловать в каталог байков Дананга!**\n" +
+            "Выбирайте и бронируйте в один клик!\n\n" +
+            "🆘 Менеджер: @dragonservicesupport\n\n---\n\n" +
+            "**Welcome to the Danang bike catalog!**\n" +
+            "Choose and book in one click!\n\n" +
+            "🆘 Manager: @dragonservicesupport",
           parse_mode: "Markdown",
           reply_markup: {
-            inline_keyboard: [
-              [{ text: "📢 Subscribe / Подписаться", url: "https://t.me/dragonindanang" }],
-              [{ text: "🔄 Проверить подписку / Check subscription", callback_data: "check_sub" }]
-            ]
+            inline_keyboard: [[{ text: "🛵 Open Catalog / Открыть каталог", web_app: { url: "https://scooter-danang.vercel.app" } }]]
           }
-        }),
-      });
-
-      if (body.callback_query) {
-        await fetch(`https://api.telegram.org/bot${token}/answerCallbackQuery`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ callback_query_id: body.callback_query.id })
         });
+        return NextResponse.json({ ok: true });
       }
 
+      // ── cancel_order_{bikeId}: клиент отменяет заказ ──────────────────────
+      if (callbackData.startsWith('cancel_order_')) {
+        const bikeId = callbackData.replace('cancel_order_', '');
+
+        const { data: booking } = await supabaseAdmin
+          .from('bookings')
+          .select('id, bike_model')
+          .eq('telegram_id', chatId)
+          .eq('bike_id', bikeId)
+          .eq('status', 'pending')
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+
+        if (booking) {
+          await supabaseAdmin.from('bookings').update({ status: 'cancelled' }).eq('id', booking.id);
+
+          // Уведомляем админа
+          await tgPost(token, 'sendMessage', {
+            chat_id: MY_ADMIN_ID,
+            text: `❌ **Заказ №${booking.id} отменён клиентом.**\nБайк: ${booking.bike_model}`,
+            parse_mode: 'Markdown',
+          });
+        }
+
+        await tgPost(token, 'editMessageText', {
+          chat_id: chatId,
+          message_id: messageId,
+          text:
+            "❌ **Ваше бронирование отменено.**\nРешили выбрать другой байк? Заходите в каталог.\n\n---\n❌ **Your booking has been cancelled.**\nDecided to choose another bike? Visit the catalog.",
+          parse_mode: 'Markdown',
+          reply_markup: {
+            inline_keyboard: [[{ text: "🛵 Открыть каталог / Open Catalog", web_app: { url: "https://scooter-danang.vercel.app" } }]],
+          },
+        });
+
+        await answerCallback();
+        return NextResponse.json({ ok: true });
+      }
+
+      // ── Все остальные кнопки — только для админа ──────────────────────────
+      if (chatId !== MY_ADMIN_ID) {
+        await answerCallback();
+        return NextResponse.json({ ok: true });
+      }
+
+      // ── manage_{id}: показать кнопки управления заказом ───────────────────
+      if (callbackData.startsWith('manage_')) {
+        const orderId = callbackData.replace('manage_', '');
+        await tgPost(token, 'editMessageReplyMarkup', {
+          chat_id: chatId,
+          message_id: messageId,
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: "✅ Подтвердить наличие", callback_data: `confirm_${orderId}` }],
+              [{ text: "❌ Нет в наличии",       callback_data: `decline_${orderId}` }],
+              [{ text: "✉️ Написать клиенту",    callback_data: `ask_msg_${orderId}` }],
+            ],
+          },
+        });
+        await answerCallback();
+        return NextResponse.json({ ok: true });
+      }
+
+      // ── confirm_{id}: подтвердить заказ ───────────────────────────────────
+      if (callbackData.startsWith('confirm_')) {
+        const id = callbackData.replace('confirm_', '');
+        const { data: order } = await supabaseAdmin.from('bookings').select('*').eq('id', id).single();
+
+        if (order && order.status !== 'confirmed') {
+          await supabaseAdmin.from('bookings').update({ status: 'confirmed' }).eq('id', id);
+
+          await tgPost(token, 'sendMessage', {
+            chat_id: Number(order.telegram_id),
+            text:
+              "✅ **Наличие байка подтверждено!**\nОтправьте менеджеру любое сообщение, чтобы получить информацию.\n\n---\n✅ **Bike availability confirmed!**\nSend any message to the manager to get info.",
+            parse_mode: 'Markdown',
+            reply_markup: { inline_keyboard: [[{ text: "✉️ Написать менеджеру / Message manager", url: SUPPORT_LINK }]] },
+          });
+
+          await tgPost(token, 'editMessageText', {
+            chat_id: MY_ADMIN_ID,
+            message_id: messageId,
+            text: oldText + "\n\n✅ **СТАТУС: ПОДТВЕРЖДЕНО**",
+            parse_mode: 'Markdown',
+          });
+        }
+
+        await answerCallback();
+        return NextResponse.json({ ok: true });
+      }
+
+      // ── decline_{id}: отказать в заказе ───────────────────────────────────
+      if (callbackData.startsWith('decline_')) {
+        const id = callbackData.replace('decline_', '');
+        const { data: order } = await supabaseAdmin.from('bookings').select('*').eq('id', id).single();
+
+        if (order && order.status !== 'unavailable') {
+          await supabaseAdmin.from('bookings').update({ status: 'unavailable' }).eq('id', id);
+
+          await tgPost(token, 'sendMessage', {
+            chat_id: Number(order.telegram_id),
+            text:
+              "❌ **К сожалению, этот байк занят, но мы подобрали похожие варианты.**\nНапишите менеджеру для выбора.\n\n---\n❌ **Sorry, this bike is busy, but we have similar options.**\nWrite to the manager.",
+            parse_mode: 'Markdown',
+            reply_markup: { inline_keyboard: [[{ text: "🤝 Написать менеджеру / Message manager", url: SUPPORT_LINK }]] },
+          });
+
+          await tgPost(token, 'editMessageText', {
+            chat_id: MY_ADMIN_ID,
+            message_id: messageId,
+            text: oldText + "\n\n❌ **СТАТУС: НЕТ В НАЛИЧИИ**",
+            parse_mode: 'Markdown',
+          });
+        }
+
+        await answerCallback();
+        return NextResponse.json({ ok: true });
+      }
+
+      // ── ask_msg_{id}: запросить сообщение для клиента ─────────────────────
+      if (callbackData.startsWith('ask_msg_')) {
+        const id = callbackData.replace('ask_msg_', '');
+        await tgPost(token, 'sendMessage', {
+          chat_id: MY_ADMIN_ID,
+          text: `📝 Напишите сообщение для заказа №${id}:\n(Обязательно используйте ОТВЕТ/REPLY на это сообщение)`,
+          reply_markup: { force_reply: true, selective: true },
+        });
+        await answerCallback();
+        return NextResponse.json({ ok: true });
+      }
+
+      await answerCallback();
       return NextResponse.json({ ok: true });
     }
 
-    // ── Подписан → приветствие с каталогом ────────────────────────────────────
-    const welcomeMessage =
-      "**Добро пожаловать в каталог байков Дананга!**\n" +
-      "Мы предоставляем качественный сервис без лишних заморочек. Выбирайте и бронируйте в один клик!\n\n" +
-      "🆘 По возникшим вопросам пишите менеджеру: @dragonservicesupport\n\n" +
-      "---\n\n" +
-      "**Welcome to the Danang bike catalog!**\n" +
-      "We provide high-quality service without any hassle. Choose and book in one click!\n\n" +
-      "🆘 For any questions, please contact our manager: @dragonservicesupport";
+    // ═══════════════════════════════════════════════════════════════
+    // БЛОК 2: ТЕКСТОВЫЕ СООБЩЕНИЯ
+    // ═══════════════════════════════════════════════════════════════
+    if (body.message) {
+      const chatId = body.message.chat.id;
+      const text = body.message.text || '';
+      const userId = body.message.from?.id;
+      const username = body.message.from?.username || "anonymous";
 
-    await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: chatId,
-        text: welcomeMessage,
-        parse_mode: "Markdown",
-        reply_markup: {
-          inline_keyboard: [[{ text: "🛵 Open Catalog / Открыть каталог", web_app: { url: "https://scooter-danang.vercel.app" } }]]
+      // ── Ответ админа через reply (переадресация клиенту) ──────────────────
+      if (chatId === MY_ADMIN_ID && body.message.reply_to_message) {
+        const replyText = body.message.reply_to_message.text || "";
+        const idMatch = replyText.match(/(?:№|заказа\s+)(\d+)/i);
+
+        if (idMatch && text.trim().length > 0) {
+          const orderId = idMatch[1];
+          const { data: order } = await supabaseAdmin
+            .from('bookings')
+            .select('telegram_id')
+            .eq('id', orderId)
+            .single();
+
+          if (order?.telegram_id) {
+            await tgPost(token, 'sendMessage', {
+              chat_id: Number(order.telegram_id),
+              text: `💬 **Сообщение от менеджера / Message from manager:**\n\n${text}`,
+              parse_mode: 'Markdown',
+            });
+            await tgPost(token, 'sendMessage', {
+              chat_id: MY_ADMIN_ID,
+              text: `✅ Доставлено клиенту (заказ №${orderId})`,
+            });
+            return NextResponse.json({ ok: true });
+          }
         }
-      }),
-    });
+      }
 
-    if (body.callback_query) {
-      await fetch(`https://api.telegram.org/bot${token}/answerCallbackQuery`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ callback_query_id: body.callback_query.id })
-      });
+      // ── /admin (только для админа) ────────────────────────────────────────
+      if (text === '/admin' && chatId === MY_ADMIN_ID) {
+        const { data: orders } = await supabaseAdmin
+          .from('bookings')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(5);
+
+        if (!orders || orders.length === 0) {
+          await tgPost(token, 'sendMessage', { chat_id: MY_ADMIN_ID, text: "Заявок пока нет." });
+          return NextResponse.json({ ok: true });
+        }
+
+        for (const o of orders) {
+          const icon =
+            o.status === 'confirmed'   ? '✅' :
+            o.status === 'cancelled'   ? '❌' :
+            o.status === 'unavailable' ? '🚫' : '⏳';
+
+          await tgPost(token, 'sendMessage', {
+            chat_id: MY_ADMIN_ID,
+            text: `${icon} **Заказ №${o.id}**\nБайк: ${o.bike_model}\nДаты: ${o.start_date} – ${o.end_date}\nСумма: ${o.total_price || '—'}\nКлиент: @${o.client_username}\nРеферал: ${o.referrer || 'Прямой заход'}`,
+            parse_mode: 'Markdown',
+            reply_markup: { inline_keyboard: [[{ text: "⚙️ Управлять", callback_data: `manage_${o.id}` }]] },
+          });
+        }
+
+        return NextResponse.json({ ok: true });
+      }
+
+      // ── /start ────────────────────────────────────────────────────────────
+      if (text.startsWith('/start')) {
+        const parts = text.split(' ');
+        const startParam = parts.length > 1 ? parts[1] : 'direct';
+
+        // Записываем реферала
+        await supabase.from('users').upsert(
+          { telegram_id: chatId, referrer: startParam, username },
+          { onConflict: 'telegram_id' }
+        );
+
+        // Проверяем подписку
+        const isSubscribed = await checkSubscription(token, userId);
+
+        if (!isSubscribed) {
+          await tgPost(token, 'sendMessage', {
+            chat_id: chatId,
+            text:
+              "**Для доступа к каталогу необходимо подписаться на наш канал**\n\n" +
+              "Пожалуйста, подпишитесь на канал и нажмите кнопку проверки ниже.\n\n" +
+              "---\n\n" +
+              "**To use our catalog, please subscribe to our channel**\n\n" +
+              "Please subscribe to the channel and click the verification button below.",
+            parse_mode: "Markdown",
+            reply_markup: {
+              inline_keyboard: [
+                [{ text: "📢 Subscribe / Подписаться", url: "https://t.me/dragonindanang" }],
+                [{ text: "🔄 Проверить подписку / Check subscription", callback_data: "check_sub" }]
+              ]
+            }
+          });
+          return NextResponse.json({ ok: true });
+        }
+
+        // Подписан — показываем каталог
+        await tgPost(token, 'sendMessage', {
+          chat_id: chatId,
+          text:
+            "**Добро пожаловать в каталог байков Дананга!**\n" +
+            "Мы предоставляем качественный сервис без лишних заморочек. Выбирайте и бронируйте в один клик!\n\n" +
+            "🆘 По возникшим вопросам пишите менеджеру: @dragonservicesupport\n\n" +
+            "---\n\n" +
+            "**Welcome to the Danang bike catalog!**\n" +
+            "We provide high-quality service without any hassle. Choose and book in one click!\n\n" +
+            "🆘 For any questions, please contact our manager: @dragonservicesupport",
+          parse_mode: "Markdown",
+          reply_markup: {
+            inline_keyboard: [[{ text: "🛵 Open Catalog / Открыть каталог", web_app: { url: "https://scooter-danang.vercel.app" } }]]
+          }
+        });
+
+        return NextResponse.json({ ok: true });
+      }
+
+      return NextResponse.json({ ok: true });
     }
 
     return NextResponse.json({ ok: true });
   } catch {
-    return NextResponse.json({ ok: false });
+    return NextResponse.json({ ok: true });
   }
 }
 
