@@ -6,7 +6,6 @@ export async function POST(req: Request) {
     const body = await req.json();
     const botToken = process.env.TELEGRAM_BOT_TOKEN;
     const MY_ADMIN_ID = 1920798985;
-    const GOOGLE_MAPS_LINK = "https://maps.google.com/?q=Your+Location"; 
     const SUPPORT_LINK = "https://t.me/dragonservicesupport";
 
     const supabase = createClient(
@@ -67,6 +66,7 @@ export async function POST(req: Request) {
           })
         });
         await answerCallback();
+        return NextResponse.json({ ok: true }); // Важно! Останавливаем выполнение, чтобы не сработал /start
       }
 
       if (callbackData.startsWith('confirm_')) {
@@ -74,16 +74,17 @@ export async function POST(req: Request) {
         const { data: order } = await supabase.from('bookings').select('*').eq('id', id).single();
         if (order && order.status !== 'confirmed') {
           await supabase.from('bookings').update({ status: 'confirmed' }).eq('id', id);
+          
+          const confirmText = `✅ **Наличие байка подтверждено!**\nОтправьте пожалуйста любое сообщение менеджеру, он отправит детали.\n\n---\n✅ **Bike availability confirmed!**\nPlease send any message to the manager, they will send the details.`;
+          
           await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, { 
             method: 'POST', 
             headers: { 'Content-Type': 'application/json' }, 
             body: JSON.stringify({
               chat_id: Number(order.telegram_id),
-              text: `✅ **Наличие байка подтверждено!**\nОтправьте пожалуйста любое сообщение менеджеру, он отправит детали.\n\n🤝 **Менеджер / Support:** @dragonservicesupport\n\n---\n✅ **Bike availability confirmed!**\nPlease send any message to the manager and he will send you the details.\n\n🤝 **Manager / Support:** @dragonservicesupport`,
+              text: confirmText,
               parse_mode: "Markdown",
-              reply_markup: {
-                inline_keyboard: [[{ text: "✉️ Написать менеджеру / Contact Manager", url: SUPPORT_LINK }]]
-              }
+              reply_markup: { inline_keyboard: [[{ text: "✉️ Написать менеджеру / Message manager", url: SUPPORT_LINK }]] }
             })
           });
           await fetch(`https://api.telegram.org/bot${botToken}/editMessageText`, { 
@@ -98,6 +99,7 @@ export async function POST(req: Request) {
           });
         }
         await answerCallback();
+        return NextResponse.json({ ok: true });
       }
 
       if (callbackData.startsWith('decline_')) {
@@ -105,15 +107,18 @@ export async function POST(req: Request) {
         const { data: order } = await supabase.from('bookings').select('*').eq('id', id).single();
         if (order && order.status !== 'unavailable') {
           await supabase.from('bookings').update({ status: 'unavailable' }).eq('id', id);
+          
+          const declineText = `❌ **К сожалению, владелец не подтвердил ваш цвет либо модель байка.**\nМы уже подобрали для вас схожие варианты, напишите менеджеру любое сообщение, он отправит варианты.\n\n---\n❌ **Unfortunately, the owner did not confirm your color or bike model.**\nWe have already selected similar options for you, send any message to the manager and they will send the options.`;
+          
           await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, { 
             method: 'POST', 
             headers: { 'Content-Type': 'application/json' }, 
             body: JSON.stringify({
               chat_id: Number(order.telegram_id),
-              text: `😔 **К сожалению, владелец не подтвердил ваш цвет либо модель байка.**\nМы уже подобрали для вас схожие варианты — напишите менеджеру любое сообщение, он отправит варианты.\n\n🤝 **Менеджер / Support:** @dragonservicesupport\n\n---\n😔 **Unfortunately, the owner did not confirm your bike color or model.**\nWe have already selected similar options for you — send any message to the manager and he will send the alternatives.\n\n🤝 **Manager / Support:** @dragonservicesupport`,
+              text: declineText,
               parse_mode: "Markdown",
               reply_markup: {
-                inline_keyboard: [[{ text: "🤝 Написать менеджеру / Contact Manager", url: SUPPORT_LINK }]]
+                inline_keyboard: [[{ text: "🤝 Написать менеджеру / Message manager", url: SUPPORT_LINK }]]
               }
             })
           });
@@ -129,10 +134,11 @@ export async function POST(req: Request) {
           });
         }
         await answerCallback();
+        return NextResponse.json({ ok: true });
       }
 
       if (callbackData.startsWith('ask_msg_')) {
-        const id = callbackData.split('_2')[1];
+        const id = callbackData.split('_')[1];
         await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, { 
           method: 'POST', 
           headers: { 'Content-Type': 'application/json' }, 
@@ -143,6 +149,7 @@ export async function POST(req: Request) {
           })
         });
         await answerCallback();
+        return NextResponse.json({ ok: true });
       }
       return NextResponse.json({ ok: true });
     }
@@ -182,29 +189,19 @@ export async function POST(req: Request) {
 
       if (text === '/admin' && chatId === MY_ADMIN_ID) {
         const { data: orders } = await supabase.from('bookings').select('*').order('created_at', { ascending: false }).limit(5);
-        
         if (!orders || orders.length === 0) {
-          await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              chat_id: MY_ADMIN_ID,
-              text: "📭 Заявок пока нет.",
-              parse_mode: "Markdown"
-            })
-          });
-          return NextResponse.json({ ok: true });
+            await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ chat_id: MY_ADMIN_ID, text: "Заявок пока нет." })
+            });
         }
-
-        for (const o of orders) {
+        for (const o of orders || []) {
           const statusIcon = o.status === 'confirmed' ? '✅' : o.status === 'cancelled' ? '❌' : o.status === 'unavailable' ? '🚫' : '⏳';
-          const statusLabel = o.status === 'confirmed' ? 'Подтверждён' : o.status === 'cancelled' ? 'Отменён' : o.status === 'unavailable' ? 'Нет в наличии' : 'Ожидает';
-          const referrer = o.referrer ? `\n👤 **Реферал:** ${o.referrer}` : '';
-
           await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               chat_id: MY_ADMIN_ID,
-              text: `${statusIcon} **Заказ №${o.id}**\n**Байк:** ${o.bike_model}\n**Даты:** ${o.start_date} — ${o.end_date}\n**Сумма:** ${o.total_price || '—'}\n**Клиент:** @${o.client_username}${referrer}\n**Статус:** ${statusLabel}`,
+              text: `${statusIcon} **Заказ №${o.id}**\nБайк: ${o.bike_model}\nДаты: ${o.start_date} - ${o.end_date}\nСумма: ${o.total_price || '—'}\nКлиент: @${o.client_username}\nРеферал: ${o.referrer || 'Прямой заход'}`,
               parse_mode: "Markdown",
               reply_markup: { inline_keyboard: [[{ text: "⚙️ Управлять", callback_data: `manage_${o.id}` }]] }
             })
@@ -213,41 +210,45 @@ export async function POST(req: Request) {
         return NextResponse.json({ ok: true });
       }
 
-      const welcomeMessage = `✨ **Добро пожаловать в каталог байков Дананга!**\n\nНаш сервис помогает вам арендовать транспорт за несколько кликов без лишних заморочек. 🛵\n\n---\n✨ **Welcome to the Da Nang Bike Catalog!**\n\nOur service helps you rent transport in a few clicks without any hassle. 🛵\n\n🤝 **Менеджер / Support:** @dragonservicesupport`;
-      
-      await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, { 
-        method: 'POST', 
-        headers: { 'Content-Type': 'application/json' }, 
-        body: JSON.stringify({
-          chat_id: chatId, 
-          text: welcomeMessage, 
-          parse_mode: "Markdown",
-          reply_markup: { inline_keyboard: [[{ text: "🛵 Открыть каталог / Open Catalog", web_app: { url: "https://scooter-danang.vercel.app" } }]] }
-        })
-      });
-      return NextResponse.json({ ok: true });
+      if (text.startsWith('/start')) {
+          const welcomeMessage = `✨ **Добро пожаловать в каталог байков Дананга!**\n\nНаш сервис помогает вам арендовать транспорт за несколько кликов без лишних заморочек. 🛵\n\n---\n✨ **Welcome to the Da Nang Bike Catalog!**\n\nOur service helps you rent transport in a few clicks without any hassle. 🛵\n\n🤝 **Менеджер / Support:** @dragonservicesupport`;
+          
+          await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, { 
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json' }, 
+            body: JSON.stringify({
+              chat_id: chatId, 
+              text: welcomeMessage, 
+              parse_mode: "Markdown",
+              reply_markup: { inline_keyboard: [[{ text: "🛵 Открыть каталог / Open Catalog", web_app: { url: "https://scooter-danang.vercel.app" } }]] }
+            })
+          });
+          return NextResponse.json({ ok: true });
+      }
     }
 
     // --- 2. ЛОГИКА НОВОГО ЗАКАЗА ---
     const { bike_model, start_date, end_date, client_username, telegram_id, bike_id, total_price } = body;
     if (bike_model && telegram_id) {
-      // Получаем реферала пользователя из таблицы users
+      
+      // ПОИСК РЕФЕРАЛА В ТАБЛИЦЕ USERS
+      let finalReferrer = body.referrer;
       const { data: userData } = await supabase.from('users').select('referrer').eq('telegram_id', telegram_id).single();
-      const referrerInfo = userData?.referrer && userData.referrer !== 'direct' 
-        ? `\n👤 **Реферал:** ${userData.referrer}` 
-        : '\n👤 **Реферал:** прямой переход';
+      if (userData?.referrer) {
+        finalReferrer = userData.referrer;
+      }
 
       const { data: newOrder } = await supabase.from('bookings').insert([{
-        bike_id, bike_model, start_date, end_date, client_username, telegram_id, status: 'pending', total_price
+        bike_id, bike_model, start_date, end_date, client_username, telegram_id, status: 'pending', total_price, referrer: finalReferrer
       }]).select().single();
 
-      // Уведомление админу (на русском + сумма + реферал)
+      // Уведомление админу
       await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           chat_id: MY_ADMIN_ID, 
-          text: `🔔 **НОВЫЙ ЗАКАЗ №${newOrder?.id}**\n\n**Байк:** ${bike_model}\n**Даты:** ${start_date} — ${end_date}\n**Сумма:** ${total_price || 'Не указана'}\n**Клиент:** @${client_username}${referrerInfo}`, 
-          parse_mode: "Markdown",
+          text: `🔔 **НОВЫЙ ЗАКАЗ №${newOrder?.id}**\n\n**Байк:** ${bike_model}\n**Даты:** ${start_date} — ${end_date}\n**Сумма:** ${total_price || 'Не указана'}\n**Клиент:** @${client_username}\n**Реферал:** ${finalReferrer || 'Прямой заход'}`, 
+          parse_mode: 'Markdown',
           reply_markup: { inline_keyboard: [[{ text: "⚙️ Управлять заказом", callback_data: `manage_${newOrder?.id}` }]] }
         }),
       });
