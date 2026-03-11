@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(
@@ -14,6 +14,18 @@ export default function PartnerCabinet() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
+
+  // При загрузке страницы восстанавливаем сессию
+  useEffect(() => {
+    const saved = sessionStorage.getItem('partner_stats');
+    if (saved) {
+      try {
+        setStats(JSON.parse(saved));
+      } catch {
+        sessionStorage.removeItem('partner_stats');
+      }
+    }
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,9 +57,7 @@ export default function PartnerCabinet() {
 
     // 2. Получаем данные по новой логике
     const [clicks, bookingsData] = await Promise.all([
-      // Считаем переходы (как и раньше)
       supabase.from('users').select('*', { count: 'exact', head: true }).eq('referrer', partner.name),
-      // Получаем все успешные заказы этого партнера, которые ЕЩЕ НЕ были выплачены
       supabase.from('bookings')
         .select('commission_amount')
         .eq('referrer', partner.name)
@@ -58,12 +68,16 @@ export default function PartnerCabinet() {
     const currentBalance = bookingsData.data?.reduce((sum, item) => sum + (Number(item.commission_amount) || 0), 0) || 0;
     const paidCount = bookingsData.data?.length || 0;
 
-    setStats({
+    const newStats = {
       name: partner.name,
       clicks: clicks.count || 0,
       paid: paidCount,
       balance: currentBalance
-    });
+    };
+
+    // Сохраняем сессию
+    sessionStorage.setItem('partner_stats', JSON.stringify(newStats));
+    setStats(newStats);
     setLoading(false);
   };
 
@@ -71,6 +85,11 @@ export default function PartnerCabinet() {
     navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleLogout = () => {
+    sessionStorage.removeItem('partner_stats');
+    setStats(null);
   };
 
   if (!stats) {
@@ -154,7 +173,7 @@ export default function PartnerCabinet() {
         </a>
       </div>
 
-      <button onClick={() => setStats(null)} style={{ width: '100%', marginTop: '40px', background: 'none', border: 'none', color: '#999', cursor: 'pointer', textDecoration: 'underline', fontSize: '13px' }}>
+      <button onClick={handleLogout} style={{ width: '100%', marginTop: '40px', background: 'none', border: 'none', color: '#999', cursor: 'pointer', textDecoration: 'underline', fontSize: '13px' }}>
         Выйти из системы
       </button>
     </div>
