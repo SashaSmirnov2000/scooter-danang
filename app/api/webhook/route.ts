@@ -98,20 +98,18 @@ const MSG_BOOKING_CANCELLED =
   "Want to pick a different bike? The catalog is always open!";
 
 const MSG_BOOKING_CONFIRMED =
-  "✅ *Отличные новости — байк свободен и ждёт вас!*\n\n" +
-  "Напишите менеджеру, чтобы уточнить детали доставки.\n\n" +
+  "✅ *Байк подтверждён и свободен для вас!*\n\n" +
+  "Напишите менеджеру любое сообщение — он пришлёт вам все детали о доставке.\n\n" +
   "━━━━━━━━━━━━━━━━━\n\n" +
-  "✅ *Great news — your bike is available and ready!*\n\n" +
-  "Message the manager to confirm delivery details.";
+  "✅ *Your bike is confirmed and ready!*\n\n" +
+  "Send the manager any message — they'll send you all the delivery details.";
 
 const MSG_BOOKING_UNAVAILABLE =
   "😔 *К сожалению, этот байк уже занят.*\n\n" +
-  "Но не расстраивайтесь — у нас есть похожие варианты!\n" +
-  "Напишите менеджеру, и мы быстро подберём альтернативу.\n\n" +
+  "Напишите менеджеру любое сообщение — мы пришлём вам похожие свободные варианты.\n\n" +
   "━━━━━━━━━━━━━━━━━\n\n" +
   "😔 *Sorry, this bike is no longer available.*\n\n" +
-  "But don't worry — we have similar options!\n" +
-  "Message the manager and we'll find you a great alternative.";
+  "Send the manager any message — we'll send you similar available options.";
 
 const MSG_FALLBACK =
   "👋 *Кажется, я не совсем понял ваш запрос.*\n\n" +
