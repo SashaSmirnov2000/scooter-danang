@@ -352,6 +352,55 @@ export async function POST(req: Request) {
         }
       }
 
+      // ── /broadcast с фото (только для админа) ────────────────────────────
+      if (chatId === MY_ADMIN_ID && body.message.photo) {
+        const caption = body.message.caption || '';
+        if (caption.startsWith('/broadcast')) {
+          const broadcastCaption = caption.replace('/broadcast', '').trim();
+          const photoFileId = body.message.photo[body.message.photo.length - 1].file_id;
+
+          const { data: users } = await supabaseAdmin
+            .from('users')
+            .select('telegram_id');
+
+          if (!users || users.length === 0) {
+            await tgPost(token, 'sendMessage', {
+              chat_id: MY_ADMIN_ID,
+              text: "⚠️ Пользователей в базе пока нет.",
+            });
+            return NextResponse.json({ ok: true });
+          }
+
+          let sent = 0;
+          let failed = 0;
+
+          for (const user of users) {
+            try {
+              const res = await tgPost(token, 'sendPhoto', {
+                chat_id: Number(user.telegram_id),
+                photo: photoFileId,
+                caption: broadcastCaption,
+                parse_mode: 'Markdown',
+              });
+              const data = await res.json();
+              if (data.ok) sent++;
+              else failed++;
+            } catch {
+              failed++;
+            }
+            await new Promise(r => setTimeout(r, 50));
+          }
+
+          await tgPost(token, 'sendMessage', {
+            chat_id: MY_ADMIN_ID,
+            text: `📊 *Рассылка с фото завершена*\n\n✅ Доставлено: ${sent}\n❌ Ошибок: ${failed}\n👥 Всего: ${users.length}`,
+            parse_mode: 'Markdown',
+          });
+
+          return NextResponse.json({ ok: true });
+        }
+      }
+
       // ── /admin (только для админа) ────────────────────────────────────────
       if (text === '/admin' && chatId === MY_ADMIN_ID) {
         const { data: orders } = await supabaseAdmin
