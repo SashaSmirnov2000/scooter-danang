@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(
@@ -15,17 +15,50 @@ export default function PartnerCabinet() {
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
 
-  // При загрузке страницы восстанавливаем сессию
-  useEffect(() => {
-    const saved = sessionStorage.getItem('partner_stats');
-    if (saved) {
-      try {
-        setStats(JSON.parse(saved));
-      } catch {
-        sessionStorage.removeItem('partner_stats');
-      }
-    }
+  // Загружает актуальные данные партнёра по имени
+  const fetchStats = useCallback(async (name: string) => {
+    const [clicks, bookingsData] = await Promise.all([
+      supabase.from('users').select('*', { count: 'exact', head: true }).eq('referrer', name),
+      supabase.from('bookings')
+        .select('commission_amount')
+        .eq('referrer', name)
+        .eq('status', 'completed')
+    ]);
+
+    const currentBalance = bookingsData.data?.reduce((sum, item) => sum + (Number(item.commission_amount) || 0), 0) || 0;
+    const paidCount = bookingsData.data?.length || 0;
+
+    return {
+      name,
+      clicks: clicks.count || 0,
+      paid: paidCount,
+      balance: currentBalance
+    };
   }, []);
+
+  // При загрузке страницы восстанавливаем сессию из localStorage (не слетает при закрытии браузера)
+  useEffect(() => {
+    const savedName = localStorage.getItem('partner_name');
+    if (savedName) {
+      fetchStats(savedName).then(newStats => {
+        setStats(newStats);
+      }).catch(() => {
+        localStorage.removeItem('partner_name');
+      });
+    }
+  }, [fetchStats]);
+
+  // Автообновление данных каждые 30 секунд
+  useEffect(() => {
+    if (!stats?.name) return;
+
+    const interval = setInterval(async () => {
+      const newStats = await fetchStats(stats.name);
+      setStats(newStats);
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, [stats?.name, fetchStats]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,7 +68,6 @@ export default function PartnerCabinet() {
     const cleanName = refName.trim().toLowerCase();
     const cleanPass = password.trim();
 
-    // 1. Проверяем партнера
     const { data: partner, error: pError } = await supabase
       .from('partners')
       .select('name, password')
@@ -55,28 +87,10 @@ export default function PartnerCabinet() {
       return;
     }
 
-    // 2. Получаем данные по новой логике
-    const [clicks, bookingsData] = await Promise.all([
-      supabase.from('users').select('*', { count: 'exact', head: true }).eq('referrer', partner.name),
-      supabase.from('bookings')
-        .select('commission_amount')
-        .eq('referrer', partner.name)
-        .eq('status', 'completed')
-    ]);
+    const newStats = await fetchStats(partner.name);
 
-    // 3. Считаем баланс как сумму всех commission_amount
-    const currentBalance = bookingsData.data?.reduce((sum, item) => sum + (Number(item.commission_amount) || 0), 0) || 0;
-    const paidCount = bookingsData.data?.length || 0;
-
-    const newStats = {
-      name: partner.name,
-      clicks: clicks.count || 0,
-      paid: paidCount,
-      balance: currentBalance
-    };
-
-    // Сохраняем сессию
-    sessionStorage.setItem('partner_stats', JSON.stringify(newStats));
+    // Сохраняем имя партнёра в localStorage — не слетит при закрытии браузера
+    localStorage.setItem('partner_name', partner.name);
     setStats(newStats);
     setLoading(false);
   };
@@ -88,7 +102,7 @@ export default function PartnerCabinet() {
   };
 
   const handleLogout = () => {
-    sessionStorage.removeItem('partner_stats');
+    localStorage.removeItem('partner_name');
     setStats(null);
   };
 
