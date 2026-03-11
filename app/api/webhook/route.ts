@@ -30,6 +30,100 @@ async function checkSubscription(botToken: string, userId: number) {
   }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// ТЕКСТЫ СООБЩЕНИЙ
+// ─────────────────────────────────────────────────────────────────────────────
+
+const MSG_NOT_SUBSCRIBED =
+  "🛵 *Один шаг до поездки!*\n\n" +
+  "Подпишитесь на наш канал — это быстро и бесплатно.\n" +
+  "После подписки вы сразу получите доступ к каталогу байков.\n\n" +
+  "━━━━━━━━━━━━━━━━━\n\n" +
+  "🛵 *One step to your ride!*\n\n" +
+  "Subscribe to our channel — it's quick and free.\n" +
+  "After subscribing, you'll get instant access to the bike catalog.";
+
+const MSG_WELCOME_CATALOG =
+  "✅ *Подписка подтверждена — добро пожаловать!*\n\n" +
+  "Открывайте каталог и бронируйте байк прямо сейчас.\n\n" +
+  "🆘 Поддержка: @dragonservicesupport\n\n" +
+  "━━━━━━━━━━━━━━━━━\n\n" +
+  "✅ *Subscription confirmed — welcome aboard!*\n\n" +
+  "Open the catalog and book your bike right now.\n\n" +
+  "🆘 Support: @dragonservicesupport";
+
+const MSG_START_NOT_SUBSCRIBED =
+  "🌴 *Привет! Это Dragon Services — аренда байков в Дананге.*\n\n" +
+  "Забудьте о переписках, ожиданиях и лишних хлопотах.\n" +
+  "Здесь всё просто:\n\n" +
+  "• Выбираете байк из каталога\n" +
+  "• Бронируете в один клик\n" +
+  "• Наслаждаетесь поездкой\n\n" +
+  "Никаких звонков. Никакого ожидания. Всё автоматически.\n\n" +
+  "Чтобы открыть каталог, подпишитесь на наш канал 👇\n\n" +
+  "━━━━━━━━━━━━━━━━━\n\n" +
+  "🌴 *Hey! This is Dragon Services — bike rentals in Da Nang.*\n\n" +
+  "Forget about chats, waiting, and extra hassle.\n" +
+  "It's all super simple here:\n\n" +
+  "• Pick a bike from the catalog\n" +
+  "• Book in one click\n" +
+  "• Enjoy the ride\n\n" +
+  "No calls. No waiting. Fully automated.\n\n" +
+  "To open the catalog, subscribe to our channel 👇";
+
+const MSG_START_SUBSCRIBED =
+  "🌴 *Привет! Это Dragon Services — аренда байков в Дананге.*\n\n" +
+  "Забудьте о переписках, ожиданиях и лишних хлопотах.\n" +
+  "Здесь всё просто:\n\n" +
+  "• Выбираете байк из каталога\n" +
+  "• Бронируете в один клик\n" +
+  "• Наслаждаетесь поездкой\n\n" +
+  "Никаких звонков. Никакого ожидания. Всё автоматически.\n\n" +
+  "🆘 Поддержка: @dragonservicesupport\n\n" +
+  "━━━━━━━━━━━━━━━━━\n\n" +
+  "🌴 *Hey! This is Dragon Services — bike rentals in Da Nang.*\n\n" +
+  "Forget about chats, waiting, and extra hassle.\n" +
+  "It's all super simple here:\n\n" +
+  "• Pick a bike from the catalog\n" +
+  "• Book in one click\n" +
+  "• Enjoy the ride\n\n" +
+  "No calls. No waiting. Fully automated.\n\n" +
+  "🆘 Support: @dragonservicesupport";
+
+const MSG_BOOKING_CANCELLED =
+  "❌ *Бронирование отменено.*\n\n" +
+  "Хотите выбрать другой байк? Каталог всегда открыт!\n\n" +
+  "━━━━━━━━━━━━━━━━━\n\n" +
+  "❌ *Booking cancelled.*\n\n" +
+  "Want to pick a different bike? The catalog is always open!";
+
+const MSG_BOOKING_CONFIRMED =
+  "✅ *Отличные новости — байк свободен и ждёт вас!*\n\n" +
+  "Напишите менеджеру, чтобы уточнить детали доставки.\n\n" +
+  "━━━━━━━━━━━━━━━━━\n\n" +
+  "✅ *Great news — your bike is available and ready!*\n\n" +
+  "Message the manager to confirm delivery details.";
+
+const MSG_BOOKING_UNAVAILABLE =
+  "😔 *К сожалению, этот байк уже занят.*\n\n" +
+  "Но не расстраивайтесь — у нас есть похожие варианты!\n" +
+  "Напишите менеджеру, и мы быстро подберём альтернативу.\n\n" +
+  "━━━━━━━━━━━━━━━━━\n\n" +
+  "😔 *Sorry, this bike is no longer available.*\n\n" +
+  "But don't worry — we have similar options!\n" +
+  "Message the manager and we'll find you a great alternative.";
+
+const MSG_FALLBACK =
+  "👋 *Кажется, я не совсем понял ваш запрос.*\n\n" +
+  "Чтобы было быстрее и удобнее — пользуйтесь кнопками меню.\n" +
+  "Сейчас отправлю стартовое меню 👇\n\n" +
+  "━━━━━━━━━━━━━━━━━\n\n" +
+  "👋 *Hmm, I didn't quite get that.*\n\n" +
+  "For the fastest experience — please use the menu buttons.\n" +
+  "Sending you the main menu now 👇";
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 export async function POST(req: Request) {
   try {
     const body = await req.json();
@@ -65,12 +159,11 @@ export async function POST(req: Request) {
           await answerCallback();
           await tgPost(token, 'sendMessage', {
             chat_id: chatId,
-            text:
-              "**Вы ещё не подписались на канал.**\n\nПожалуйста, подпишитесь и попробуйте снова.\n\n---\n\n**You haven't subscribed yet.**\n\nPlease subscribe and try again.",
+            text: MSG_NOT_SUBSCRIBED,
             parse_mode: "Markdown",
             reply_markup: {
               inline_keyboard: [
-                [{ text: "📢 Subscribe / Подписаться", url: "https://t.me/dragonindanang" }],
+                [{ text: "📢 Подписаться / Subscribe", url: "https://t.me/dragonindanang" }],
                 [{ text: "🔄 Проверить подписку / Check subscription", callback_data: "check_sub" }]
               ]
             }
@@ -82,16 +175,10 @@ export async function POST(req: Request) {
         await answerCallback();
         await tgPost(token, 'sendMessage', {
           chat_id: chatId,
-          text:
-            "**Добро пожаловать в каталог байков Дананга!**\n" +
-            "Выбирайте и бронируйте в один клик!\n\n" +
-            "🆘 Менеджер: @dragonservicesupport\n\n---\n\n" +
-            "**Welcome to the Danang bike catalog!**\n" +
-            "Choose and book in one click!\n\n" +
-            "🆘 Manager: @dragonservicesupport",
+          text: MSG_WELCOME_CATALOG,
           parse_mode: "Markdown",
           reply_markup: {
-            inline_keyboard: [[{ text: "🛵 Open Catalog / Открыть каталог", web_app: { url: "https://scooter-danang.vercel.app" } }]]
+            inline_keyboard: [[{ text: "🛵 Открыть каталог / Open Catalog", web_app: { url: "https://scooter-danang.vercel.app" } }]]
           }
         });
         return NextResponse.json({ ok: true });
@@ -117,7 +204,7 @@ export async function POST(req: Request) {
           // Уведомляем админа
           await tgPost(token, 'sendMessage', {
             chat_id: MY_ADMIN_ID,
-            text: `❌ **Заказ №${booking.id} отменён клиентом.**\nБайк: ${booking.bike_model}`,
+            text: `❌ *Заказ №${booking.id} отменён клиентом.*\nБайк: ${booking.bike_model}`,
             parse_mode: 'Markdown',
           });
         }
@@ -125,8 +212,7 @@ export async function POST(req: Request) {
         await tgPost(token, 'editMessageText', {
           chat_id: chatId,
           message_id: messageId,
-          text:
-            "❌ **Ваше бронирование отменено.**\nРешили выбрать другой байк? Заходите в каталог.\n\n---\n❌ **Your booking has been cancelled.**\nDecided to choose another bike? Visit the catalog.",
+          text: MSG_BOOKING_CANCELLED,
           parse_mode: 'Markdown',
           reply_markup: {
             inline_keyboard: [[{ text: "🛵 Открыть каталог / Open Catalog", web_app: { url: "https://scooter-danang.vercel.app" } }]],
@@ -171,8 +257,7 @@ export async function POST(req: Request) {
 
           await tgPost(token, 'sendMessage', {
             chat_id: Number(order.telegram_id),
-            text:
-              "✅ **Наличие байка подтверждено!**\nОтправьте менеджеру любое сообщение, чтобы получить информацию.\n\n---\n✅ **Bike availability confirmed!**\nSend any message to the manager to get info.",
+            text: MSG_BOOKING_CONFIRMED,
             parse_mode: 'Markdown',
             reply_markup: { inline_keyboard: [[{ text: "✉️ Написать менеджеру / Message manager", url: SUPPORT_LINK }]] },
           });
@@ -180,7 +265,7 @@ export async function POST(req: Request) {
           await tgPost(token, 'editMessageText', {
             chat_id: MY_ADMIN_ID,
             message_id: messageId,
-            text: oldText + "\n\n✅ **СТАТУС: ПОДТВЕРЖДЕНО**",
+            text: oldText + "\n\n✅ *СТАТУС: ПОДТВЕРЖДЕНО*",
             parse_mode: 'Markdown',
           });
         }
@@ -199,8 +284,7 @@ export async function POST(req: Request) {
 
           await tgPost(token, 'sendMessage', {
             chat_id: Number(order.telegram_id),
-            text:
-              "❌ **К сожалению, этот байк занят, но мы подобрали похожие варианты.**\nНапишите менеджеру для выбора.\n\n---\n❌ **Sorry, this bike is busy, but we have similar options.**\nWrite to the manager.",
+            text: MSG_BOOKING_UNAVAILABLE,
             parse_mode: 'Markdown',
             reply_markup: { inline_keyboard: [[{ text: "🤝 Написать менеджеру / Message manager", url: SUPPORT_LINK }]] },
           });
@@ -208,7 +292,7 @@ export async function POST(req: Request) {
           await tgPost(token, 'editMessageText', {
             chat_id: MY_ADMIN_ID,
             message_id: messageId,
-            text: oldText + "\n\n❌ **СТАТУС: НЕТ В НАЛИЧИИ**",
+            text: oldText + "\n\n❌ *СТАТУС: НЕТ В НАЛИЧИИ*",
             parse_mode: 'Markdown',
           });
         }
@@ -258,7 +342,7 @@ export async function POST(req: Request) {
           if (order?.telegram_id) {
             await tgPost(token, 'sendMessage', {
               chat_id: Number(order.telegram_id),
-              text: `💬 **Сообщение от менеджера / Message from manager:**\n\n${text}`,
+              text: `💬 *Сообщение от менеджера / Message from manager:*\n\n${text}`,
               parse_mode: 'Markdown',
             });
             await tgPost(token, 'sendMessage', {
@@ -291,7 +375,7 @@ export async function POST(req: Request) {
 
           await tgPost(token, 'sendMessage', {
             chat_id: MY_ADMIN_ID,
-            text: `${icon} **Заказ №${o.id}**\nБайк: ${o.bike_model}\nДаты: ${o.start_date} – ${o.end_date}\nСумма: ${o.total_price || '—'}\nКлиент: @${o.client_username}\nРеферал: ${o.referrer || 'Прямой заход'}`,
+            text: `${icon} *Заказ №${o.id}*\nБайк: ${o.bike_model}\nДаты: ${o.start_date} – ${o.end_date}\nСумма: ${o.total_price || '—'}\nКлиент: @${o.client_username}\nРеферал: ${o.referrer || 'Прямой заход'}`,
             parse_mode: 'Markdown',
             reply_markup: { inline_keyboard: [[{ text: "⚙️ Управлять", callback_data: `manage_${o.id}` }]] },
           });
@@ -317,16 +401,11 @@ export async function POST(req: Request) {
         if (!isSubscribed) {
           await tgPost(token, 'sendMessage', {
             chat_id: chatId,
-            text:
-              "**Для доступа к каталогу необходимо подписаться на наш канал**\n\n" +
-              "Пожалуйста, подпишитесь на канал и нажмите кнопку проверки ниже.\n\n" +
-              "---\n\n" +
-              "**To use our catalog, please subscribe to our channel**\n\n" +
-              "Please subscribe to the channel and click the verification button below.",
+            text: MSG_START_NOT_SUBSCRIBED,
             parse_mode: "Markdown",
             reply_markup: {
               inline_keyboard: [
-                [{ text: "📢 Subscribe / Подписаться", url: "https://t.me/dragonindanang" }],
+                [{ text: "📢 Подписаться / Subscribe", url: "https://t.me/dragonindanang" }],
                 [{ text: "🔄 Проверить подписку / Check subscription", callback_data: "check_sub" }]
               ]
             }
@@ -337,19 +416,51 @@ export async function POST(req: Request) {
         // Подписан — показываем каталог
         await tgPost(token, 'sendMessage', {
           chat_id: chatId,
-          text:
-            "**Добро пожаловать в каталог байков Дананга!**\n" +
-            "Мы предоставляем качественный сервис без лишних заморочек. Выбирайте и бронируйте в один клик!\n\n" +
-            "🆘 По возникшим вопросам пишите менеджеру: @dragonservicesupport\n\n" +
-            "---\n\n" +
-            "**Welcome to the Danang bike catalog!**\n" +
-            "We provide high-quality service without any hassle. Choose and book in one click!\n\n" +
-            "🆘 For any questions, please contact our manager: @dragonservicesupport",
+          text: MSG_START_SUBSCRIBED,
           parse_mode: "Markdown",
           reply_markup: {
-            inline_keyboard: [[{ text: "🛵 Open Catalog / Открыть каталог", web_app: { url: "https://scooter-danang.vercel.app" } }]]
+            inline_keyboard: [[{ text: "🛵 Открыть каталог / Open Catalog", web_app: { url: "https://scooter-danang.vercel.app" } }]]
           }
         });
+
+        return NextResponse.json({ ok: true });
+      }
+
+      // ── FALLBACK: любое нераспознанное сообщение ──────────────────────────
+      // (не от админа, не команда)
+      if (chatId !== MY_ADMIN_ID) {
+        const isSubscribed = await checkSubscription(token, userId);
+
+        // Отправляем вежливое объяснение
+        await tgPost(token, 'sendMessage', {
+          chat_id: chatId,
+          text: MSG_FALLBACK,
+          parse_mode: 'Markdown',
+        });
+
+        // Отправляем стартовое меню заново
+        if (!isSubscribed) {
+          await tgPost(token, 'sendMessage', {
+            chat_id: chatId,
+            text: MSG_START_NOT_SUBSCRIBED,
+            parse_mode: "Markdown",
+            reply_markup: {
+              inline_keyboard: [
+                [{ text: "📢 Подписаться / Subscribe", url: "https://t.me/dragonindanang" }],
+                [{ text: "🔄 Проверить подписку / Check subscription", callback_data: "check_sub" }]
+              ]
+            }
+          });
+        } else {
+          await tgPost(token, 'sendMessage', {
+            chat_id: chatId,
+            text: MSG_START_SUBSCRIBED,
+            parse_mode: "Markdown",
+            reply_markup: {
+              inline_keyboard: [[{ text: "🛵 Открыть каталог / Open Catalog", web_app: { url: "https://scooter-danang.vercel.app" } }]]
+            }
+          });
+        }
 
         return NextResponse.json({ ok: true });
       }
