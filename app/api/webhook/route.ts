@@ -382,6 +382,60 @@ export async function POST(req: Request) {
         return NextResponse.json({ ok: true });
       }
 
+      // ── /broadcast (только для админа) ────────────────────────────────────
+      if (text.startsWith('/broadcast') && chatId === MY_ADMIN_ID) {
+        const broadcastText = text.replace('/broadcast', '').trim();
+
+        if (!broadcastText) {
+          await tgPost(token, 'sendMessage', {
+            chat_id: MY_ADMIN_ID,
+            text: "⚠️ Укажите текст рассылки.\n\nПример:\n`/broadcast Привет! У нас новый сервис...`",
+            parse_mode: 'Markdown',
+          });
+          return NextResponse.json({ ok: true });
+        }
+
+        const { data: users } = await supabaseAdmin
+          .from('users')
+          .select('telegram_id');
+
+        if (!users || users.length === 0) {
+          await tgPost(token, 'sendMessage', {
+            chat_id: MY_ADMIN_ID,
+            text: "⚠️ Пользователей в базе пока нет.",
+          });
+          return NextResponse.json({ ok: true });
+        }
+
+        let sent = 0;
+        let failed = 0;
+
+        for (const user of users) {
+          try {
+            const res = await tgPost(token, 'sendMessage', {
+              chat_id: Number(user.telegram_id),
+              text: broadcastText,
+              parse_mode: 'Markdown',
+            });
+            const data = await res.json();
+            if (data.ok) sent++;
+            else failed++;
+          } catch {
+            failed++;
+          }
+          // Пауза чтобы не словить rate limit Telegram
+          await new Promise(r => setTimeout(r, 50));
+        }
+
+        await tgPost(token, 'sendMessage', {
+          chat_id: MY_ADMIN_ID,
+          text: `📊 *Рассылка завершена*\n\n✅ Доставлено: ${sent}\n❌ Ошибок: ${failed}\n👥 Всего: ${users.length}`,
+          parse_mode: 'Markdown',
+        });
+
+        return NextResponse.json({ ok: true });
+      }
+
       // ── /start ────────────────────────────────────────────────────────────
       if (text.startsWith('/start')) {
         const parts = text.split(' ');
