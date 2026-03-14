@@ -19,7 +19,7 @@ function PriceUsd({ price }: { price: string }) {
   const vnd = parseVnd(price);
   if (!vnd) return null;
   return (
-    <span className="text-[7px] text-gray-400 font-bold leading-none">
+    <span style={{ fontSize: '10px', color: '#9ca3af', fontWeight: 600, letterSpacing: '0.02em' }}>
       {toUsd(vnd)}
     </span>
   );
@@ -27,24 +27,24 @@ function PriceUsd({ price }: { price: string }) {
 
 // ── SVG icons ─────────────────────────────────────────────────────────────
 const IconAuto = () => (
-  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
     <circle cx="12" cy="12" r="3"/>
     <path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/>
   </svg>
 );
 const IconSemi = () => (
-  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M12 20V4M5 12l7-8 7 8"/>
   </svg>
 );
 const IconManual = () => (
-  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
     <circle cx="6" cy="18" r="2"/><circle cx="18" cy="18" r="2"/>
     <path d="M6 16V6l12 10V6"/>
   </svg>
 );
 const IconNoLicense = () => (
-  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
   </svg>
 );
@@ -54,14 +54,14 @@ function SkeletonCard() {
   return (
     <div className="bg-white rounded-[1.8rem] border border-gray-100 overflow-hidden flex flex-col animate-pulse shadow-sm">
       <div className="aspect-[4/5] w-full bg-gray-100" />
-      <div className="p-3 flex flex-col gap-2">
-        <div className="h-2 w-16 bg-gray-200 rounded" />
-        <div className="h-4 w-3/4 bg-gray-200 rounded" />
+      <div className="p-3 flex flex-col gap-2.5">
+        <div className="h-2.5 w-20 bg-gray-200 rounded" />
+        <div className="h-5 w-3/4 bg-gray-200 rounded" />
         <div className="grid grid-cols-2 gap-1.5 mt-1">
-          <div className="h-10 bg-gray-100 rounded-lg" />
-          <div className="h-10 bg-gray-100 rounded-lg" />
+          <div className="h-12 bg-gray-100 rounded-xl" />
+          <div className="h-12 bg-gray-100 rounded-xl" />
         </div>
-        <div className="h-8 bg-gray-200 rounded-lg mt-1" />
+        <div className="h-9 bg-gray-200 rounded-xl mt-1" />
       </div>
     </div>
   );
@@ -168,7 +168,7 @@ export default function Home() {
       title: "Аренда скутеров и мотоциклов", location: "Дананг, Вьетнам",
       btn: "Подробнее", day: "1 сутки", month: "от 2 суток",
       rate: "1$ ≈ 26k",
-      close: "Закрыть", total: "Дней:", cc: "cc",
+      cc: " куб.",
       noBikes: "В этой категории пока нет байков",
       badgeNoLicense: "Без прав",
       noLicenseLabel: "Не нужны права",
@@ -177,7 +177,7 @@ export default function Home() {
       title: "Rent scooters and motorcycles", location: "Da Nang",
       btn: "Details", day: "1 day", month: "2+ days",
       rate: "1$ ≈ 26k",
-      close: "Close", total: "Days:", cc: "cc",
+      cc: " cc",
       noBikes: "No bikes in this category yet",
       badgeNoLicense: "No license",
       noLicenseLabel: "License free",
@@ -187,30 +187,24 @@ export default function Home() {
   return (
     <>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,700;0,900;1,700;1,900&family=Barlow:wght@400;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,700;0,900;1,700;1,900&family=Barlow:wght@400;500;600;700&display=swap');
         * { box-sizing: border-box; }
         body { background: #f4f5f7; }
         .font-display { font-family: 'Barlow Condensed', sans-serif; }
         .font-body    { font-family: 'Barlow', sans-serif; }
 
-        /* Card entrance */
         @keyframes cardIn {
           from { opacity: 0; transform: translateY(14px); }
           to   { opacity: 1; transform: translateY(0); }
         }
         .card-enter { animation: cardIn 0.4s cubic-bezier(0.22,1,0.36,1) both; }
 
-        /* Active cat glow */
-        .cat-active {
-          box-shadow: 0 4px 16px rgba(22,163,74,0.25);
-        }
+        .cat-active { box-shadow: 0 4px 16px rgba(22,163,74,0.25); }
 
-        /* Card image overlay */
         .card-img-overlay {
           background: linear-gradient(180deg, transparent 50%, rgba(0,0,0,0.45) 80%, rgba(0,0,0,0.72) 100%);
         }
 
-        /* Price shimmer */
         @keyframes shimmer {
           0%   { background-position: -200% center; }
           100% { background-position:  200% center; }
@@ -225,7 +219,6 @@ export default function Home() {
 
         .btn-press:active { transform: scale(0.95); }
 
-        /* Stagger */
         .bike-grid > *:nth-child(1) { animation-delay: 0.03s; }
         .bike-grid > *:nth-child(2) { animation-delay: 0.06s; }
         .bike-grid > *:nth-child(3) { animation-delay: 0.09s; }
@@ -235,37 +228,22 @@ export default function Home() {
         .bike-grid > *:nth-child(7) { animation-delay: 0.21s; }
         .bike-grid > *:nth-child(8) { animation-delay: 0.24s; }
 
-        .dot-sep {
-          display: inline-block; width: 3px; height: 3px;
-          background: #d1d5db; border-radius: 50%; vertical-align: middle;
-        }
-
         @keyframes fadeUp {
           from { opacity: 0; transform: translateY(8px); }
           to   { opacity: 1; transform: translateY(0); }
         }
         .fade-up { animation: fadeUp 0.5s ease both; }
 
-        /* Hero image */
-        .hero-img-wrap {
-          position: absolute; top: 0; inset: 0; z-index: 0;
-          height: 100%;
-          overflow: hidden;
-        }
-
-        /* No-license badge on card */
         .badge-nolicense {
           background: #dcfce7;
           border: 1px solid #86efac;
           color: #15803d;
         }
 
-        /* Nav shadow */
         .nav-shadow {
           box-shadow: 0 1px 0 rgba(0,0,0,0.06), 0 2px 12px rgba(0,0,0,0.05);
         }
 
-        /* Card hover */
         .bike-card {
           transition: transform 0.2s ease, box-shadow 0.2s ease;
         }
@@ -277,35 +255,37 @@ export default function Home() {
 
       <main className="bg-[#f4f5f7] min-h-screen text-gray-900 font-body flex flex-col selection:bg-green-200">
 
-        {/* ── NAV ─────────────────────────────────────────────────────── */}
+        {/* NAV */}
         <nav className="nav-shadow fixed top-0 w-full z-[100] bg-white/90 backdrop-blur-xl h-16 flex items-center justify-between px-4">
           <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 bg-gradient-to-br from-green-400 to-green-600 rounded-xl flex items-center justify-center text-lg shadow-md shadow-green-200">
               🐉
             </div>
-            <div className="flex flex-col leading-none">
-              <span className="font-display font-black text-[13px] tracking-tighter uppercase text-gray-900">Dragon Bike</span>
-              <span className="text-[7px] text-green-600 font-bold tracking-[0.25em] uppercase">Danang</span>
+            <div className="flex flex-col leading-none gap-0.5">
+              <span className="font-display font-black uppercase text-gray-900"
+                style={{ fontSize: '15px', letterSpacing: '0.04em' }}>Dragon Bike</span>
+              <span className="font-body font-bold uppercase text-green-600"
+                style={{ fontSize: '9px', letterSpacing: '0.22em' }}>Danang</span>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
-            <div className="bg-green-50 border border-green-200 px-3 py-1.5 rounded-xl text-[9px] font-black text-green-700 tracking-tighter uppercase whitespace-nowrap font-display">
+            <div className="bg-green-50 border border-green-200 px-3 py-1.5 rounded-xl font-display font-black uppercase text-green-700 whitespace-nowrap"
+              style={{ fontSize: '11px', letterSpacing: '0.05em' }}>
               {t[lang].rate}
             </div>
             <button
               onClick={toggleLang}
-              className="btn-press bg-gray-100 border border-gray-200 w-10 h-8 rounded-xl text-[10px] font-black uppercase transition-all flex items-center justify-center hover:bg-gray-200 text-gray-700"
+              className="btn-press bg-gray-100 border border-gray-200 w-10 h-8 rounded-xl font-body font-black uppercase transition-all flex items-center justify-center hover:bg-gray-200 text-gray-700"
+              style={{ fontSize: '11px', letterSpacing: '0.04em' }}
             >
               {lang === 'ru' ? 'EN' : 'RU'}
             </button>
           </div>
         </nav>
 
-        {/* ── HERO ────────────────────────────────────────────────────── */}
+        {/* HERO */}
         <section className="relative pt-16 flex flex-col items-center justify-center text-center overflow-hidden">
-
-          {/* Dragon bridge photo */}
           <div className="relative w-full h-[240px] overflow-hidden">
             <img
               src="https://static.vinwonders.com/2022/12/Dragon-Bridge-thumb.jpg"
@@ -313,23 +293,21 @@ export default function Home() {
               alt="Dragon Bridge"
               style={{ filter: 'saturate(1.1) brightness(0.82)', objectPosition: '70% center' }}
             />
-            {/* bottom gradient to merge into page bg */}
             <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, transparent 40%, rgba(244,245,247,0.7) 80%, #f4f5f7 100%)' }} />
-            {/* left fade */}
             <div className="absolute inset-0" style={{ background: 'linear-gradient(90deg, rgba(244,245,247,0.3) 0%, transparent 40%)' }} />
 
-            {/* Title overlaid on photo */}
             <div className="absolute inset-0 flex flex-col items-center justify-center px-4 fade-up">
               <h1
-                className="font-display text-[28px] font-black uppercase italic tracking-tight cursor-pointer leading-none drop-shadow-lg text-white"
-                style={{ textShadow: '0 2px 12px rgba(0,0,0,0.5)' }}
+                className="font-display font-black uppercase italic cursor-pointer leading-none text-white drop-shadow-lg"
+                style={{ fontSize: 'clamp(22px, 6vw, 32px)', letterSpacing: '0.04em', textShadow: '0 2px 12px rgba(0,0,0,0.55)' }}
                 onClick={() => setActiveCategory('All')}
               >
                 {t[lang].title}
               </h1>
-              <div className="flex items-center gap-2 mt-2">
+              <div className="flex items-center gap-2 mt-2.5">
                 <span className="w-6 h-px bg-white/60" />
-                <p className="text-white/80 text-[9px] font-bold tracking-[0.3em] uppercase" style={{ textShadow: '0 1px 4px rgba(0,0,0,0.4)' }}>
+                <p className="font-body font-bold uppercase text-white/80"
+                  style={{ fontSize: '10px', letterSpacing: '0.25em', textShadow: '0 1px 4px rgba(0,0,0,0.4)' }}>
                   {t[lang].location}
                 </p>
                 <span className="w-6 h-px bg-white/60" />
@@ -337,7 +315,7 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Category filter — sits below photo on light bg */}
+          {/* Category filter */}
           <div className="w-full max-w-2xl mx-auto px-3 py-4 fade-up" style={{ animationDelay: '0.1s' }}>
             {/* Top row */}
             <div className="flex gap-1.5 mb-1.5">
@@ -347,11 +325,12 @@ export default function Home() {
                   <button
                     key={cat.id}
                     onClick={() => setActiveCategory(isActive ? 'All' : cat.id)}
-                    className={`btn-press flex-1 px-2 py-2.5 rounded-xl font-display font-black text-[9px] uppercase tracking-tighter transition-all duration-200 border flex items-center justify-center gap-1.5
+                    className={`btn-press flex-1 py-2.5 rounded-xl font-display font-black uppercase transition-all duration-200 border flex items-center justify-center gap-1.5
                       ${isActive
                         ? 'cat-active bg-green-600 border-green-600 text-white scale-[1.02]'
                         : 'bg-white border-gray-200 text-gray-500 hover:text-gray-800 hover:border-gray-300 hover:bg-gray-50'
                       }`}
+                    style={{ fontSize: '11px', letterSpacing: '0.04em' }}
                   >
                     <cat.Icon />
                     {lang === 'ru' ? cat.ru : cat.en}
@@ -360,14 +339,14 @@ export default function Home() {
               })}
             </div>
 
-            {/* Bottom row: No license */}
+            {/* No license row */}
             {(() => {
               const cat = categories.find(c => c.id === 'Электро')!;
               const isActive = activeCategory === cat.id;
               return (
                 <button
                   onClick={() => setActiveCategory(isActive ? 'All' : cat.id)}
-                  className={`btn-press w-full rounded-xl transition-all duration-200 font-display flex items-center justify-between px-4 py-3 border
+                  className={`btn-press w-full rounded-xl transition-all duration-200 flex items-center justify-between px-4 py-3 border
                     ${isActive
                       ? 'cat-active bg-green-600 border-green-600 text-white'
                       : 'bg-white border-gray-200 text-gray-700 hover:border-green-300 hover:bg-green-50'
@@ -377,16 +356,19 @@ export default function Home() {
                     <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${isActive ? 'bg-white/20' : 'bg-green-100 border border-green-200 text-green-700'}`}>
                       <cat.Icon />
                     </div>
-                    <div className="flex flex-col items-start">
-                      <span className="text-[12px] font-black uppercase tracking-tight leading-none">
+                    <div className="flex flex-col items-start gap-0.5">
+                      <span className="font-display font-black uppercase leading-none"
+                        style={{ fontSize: '14px', letterSpacing: '0.04em' }}>
                         {lang === 'ru' ? 'Без прав' : 'No License'}
                       </span>
-                      <span className={`text-[8px] font-bold uppercase tracking-wider leading-none mt-0.5 ${isActive ? 'text-green-100' : 'text-green-600'}`}>
+                      <span className="font-body font-semibold uppercase leading-none"
+                        style={{ fontSize: '10px', letterSpacing: '0.06em', color: isActive ? 'rgba(255,255,255,0.75)' : '#16a34a' }}>
                         {lang === 'ru' ? cat.sub!.ru : cat.sub!.en}
                       </span>
                     </div>
                   </div>
-                  <div className={`text-[8px] font-black uppercase tracking-wider px-2.5 py-1.5 rounded-lg ${isActive ? 'bg-white/20 text-white' : 'bg-green-100 border border-green-200 text-green-700'}`}>
+                  <div className={`font-display font-black uppercase px-2.5 py-1.5 rounded-lg ${isActive ? 'bg-white/20 text-white' : 'bg-green-100 border border-green-200 text-green-700'}`}
+                    style={{ fontSize: '10px', letterSpacing: '0.05em' }}>
                     {t[lang].noLicenseLabel}
                   </div>
                 </button>
@@ -395,7 +377,7 @@ export default function Home() {
           </div>
         </section>
 
-        {/* ── GRID ────────────────────────────────────────────────────── */}
+        {/* GRID */}
         <section className="max-w-7xl mx-auto px-3 pb-20 relative z-20 w-full">
           {loading ? (
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -406,7 +388,10 @@ export default function Home() {
               <div className="w-10 h-10 rounded-xl bg-gray-200 flex items-center justify-center text-gray-400">
                 <IconManual />
               </div>
-              <p className="text-gray-400 font-bold uppercase text-[10px] tracking-widest">{t[lang].noBikes}</p>
+              <p className="font-body font-bold uppercase text-gray-400"
+                style={{ fontSize: '11px', letterSpacing: '0.12em' }}>
+                {t[lang].noBikes}
+              </p>
             </div>
           ) : (
             <div className="bike-grid grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -416,6 +401,7 @@ export default function Home() {
                   className="bike-card card-enter group bg-white rounded-[1.8rem] border border-gray-100 overflow-hidden flex flex-col"
                   style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.07)', animationDelay: `${idx * 0.04}s` }}
                 >
+                  {/* Photo */}
                   <Link href={`/bike/${s.id}`} className="relative aspect-[4/5] w-full overflow-hidden block">
                     <img
                       src={s.image}
@@ -426,53 +412,74 @@ export default function Home() {
 
                     {s.no_license && (
                       <div className="absolute top-2.5 left-2.5">
-                        <div className="badge-nolicense px-2 py-1 rounded-md text-[7px] font-black uppercase tracking-tighter font-display">
+                        <div className="badge-nolicense px-2 py-1 rounded-md font-display font-black uppercase"
+                          style={{ fontSize: '9px', letterSpacing: '0.05em' }}>
                           {t[lang].badgeNoLicense}
                         </div>
                       </div>
                     )}
-
-                    <div className="absolute bottom-2.5 right-2.5 bg-black/40 backdrop-blur-md px-1.5 py-0.5 rounded-md text-[7px] font-bold border border-white/20 text-white/70">
-                      {s.year}
-                    </div>
                   </Link>
 
+                  {/* Info */}
                   <div className="p-3 flex flex-col">
-                    <div className="flex items-center gap-1.5 mb-1.5 text-[8px] font-black uppercase tracking-widest text-green-600">
-                      <span>{s.transmission}</span>
-                      <span className="dot-sep" />
-                      <span>{s.engine}{t[lang].cc}</span>
+
+                    {/* Transmission · cc */}
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <span className="font-body font-bold uppercase text-green-600"
+                        style={{ fontSize: '10px', letterSpacing: '0.08em' }}>
+                        {s.transmission}
+                      </span>
+                      <span style={{ display:'inline-block', width:3, height:3, background:'#d1d5db', borderRadius:'50%', verticalAlign:'middle', flexShrink:0 }} />
+                      <span className="font-body font-bold uppercase text-green-600"
+                        style={{ fontSize: '10px', letterSpacing: '0.08em' }}>
+                        {s.engine}{t[lang].cc}
+                      </span>
                     </div>
 
-                    <h3 className="font-display text-[14px] font-black uppercase italic tracking-tighter mb-3 leading-none truncate text-gray-900">
+                    {/* Model name */}
+                    <h3 className="font-display font-black uppercase italic text-gray-900 mb-3 leading-tight truncate"
+                      style={{ fontSize: '16px', letterSpacing: '0.04em' }}>
                       {s.model}
                     </h3>
 
-                    <div className="grid grid-cols-2 gap-1.5 mb-3.5">
-                      <div className="bg-gray-50 rounded-xl p-2 border border-gray-100">
-                        <p className="text-[6px] text-gray-400 uppercase font-black mb-0.5 font-display tracking-wider">{t[lang].day}</p>
+                    {/* Prices */}
+                    <div className="grid grid-cols-2 gap-1.5 mb-3">
+                      <div className="bg-gray-50 rounded-xl p-2.5 border border-gray-100">
+                        <p className="font-body font-bold uppercase text-gray-400 mb-1"
+                          style={{ fontSize: '9px', letterSpacing: '0.07em' }}>
+                          {t[lang].day}
+                        </p>
                         <div className="flex items-baseline gap-1 flex-wrap">
-                          <p className="font-display text-[10px] font-black tracking-tighter text-gray-900">{s.price_day}</p>
+                          <span className="font-display font-black text-gray-900"
+                            style={{ fontSize: '13px', letterSpacing: '0.02em', lineHeight: 1 }}>
+                            {s.price_day}
+                          </span>
                           <PriceUsd price={s.price_day} />
                         </div>
                       </div>
-                      <div className="bg-green-50 rounded-xl p-2 border border-green-100">
-                        <p className="text-[6px] text-green-500 uppercase font-black mb-0.5 font-display tracking-wider">{t[lang].month}</p>
+                      <div className="bg-green-50 rounded-xl p-2.5 border border-green-100">
+                        <p className="font-body font-bold uppercase text-green-500 mb-1"
+                          style={{ fontSize: '9px', letterSpacing: '0.07em' }}>
+                          {t[lang].month}
+                        </p>
                         <div className="flex items-baseline gap-1 flex-wrap">
-                          <p className="font-display text-[10px] font-black tracking-tighter price-shimmer">
+                          <span className="price-shimmer font-display font-black"
+                            style={{ fontSize: '13px', letterSpacing: '0.02em', lineHeight: 1 }}>
                             {s.price_2days || s.price_day}
-                          </p>
+                          </span>
                           <PriceUsd price={s.price_2days || s.price_day} />
                         </div>
                       </div>
                     </div>
 
+                    {/* CTA */}
                     <Link
                       href={`/bike/${s.id}`}
-                      className="btn-press w-full bg-gray-900 text-white py-2.5 rounded-xl font-display font-black text-[10px] uppercase tracking-wide transition-all flex items-center justify-center gap-1.5 hover:bg-green-600 shadow-sm"
+                      className="btn-press w-full bg-gray-900 text-white rounded-xl font-display font-black uppercase transition-all flex items-center justify-center gap-1.5 hover:bg-green-600 shadow-sm"
+                      style={{ padding: '10px 12px', fontSize: '12px', letterSpacing: '0.07em' }}
                     >
                       {t[lang].btn}
-                      <svg width="9" height="9" viewBox="0 0 10 10" fill="none" className="opacity-60">
+                      <svg width="9" height="9" viewBox="0 0 10 10" fill="none" style={{ opacity: 0.6 }}>
                         <path d="M1 9L9 1M9 1H2M9 1V8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
                       </svg>
                     </Link>
@@ -483,11 +490,14 @@ export default function Home() {
           )}
         </section>
 
-        {/* ── FOOTER ──────────────────────────────────────────────────── */}
+        {/* FOOTER */}
         <footer className="w-full py-8 text-center mt-auto border-t border-gray-200">
           <div className="flex items-center justify-center gap-2">
             <span className="w-4 h-px bg-gray-300" />
-            <p className="text-[9px] text-gray-400 font-bold uppercase tracking-[0.3em] font-display">Dragon Bike &bull; 2026</p>
+            <p className="font-display font-bold uppercase text-gray-400"
+              style={{ fontSize: '10px', letterSpacing: '0.25em' }}>
+              Dragon Bike &bull; 2026
+            </p>
             <span className="w-4 h-px bg-gray-300" />
           </div>
         </footer>
