@@ -104,8 +104,8 @@ export default function BikePage() {
   const t = {
     ru: {
       back: "Назад", day: "1 сутки", month: "от 2 суток",
-      btn: "Забронировать", helmets: "2 шлема в комплекте", clean: "Идеально чистое",
-      description: "Описание", transmission: "Трансмиссия",
+      btn: "Забронировать", helmets: "2 шлема в комплекте", clean: "В чистом состоянии",
+      description: "Описание", transmission: "Трансмиссия", engine: "Двигатель", cc: "куб.",
       modalSub: "Даты аренды", submitBtn: "Отправить запрос",
       successTitle: "Запрос принят",
       successText: "Мы уже связываемся с владельцем. Вы можете закрыть приложение, мы пришлем уведомление в Telegram.",
@@ -115,8 +115,8 @@ export default function BikePage() {
     },
     en: {
       back: "Back", day: "1 day", month: "2+ days",
-      btn: "Book Now", helmets: "2 helmets included", clean: "Perfectly clean",
-      description: "Description", transmission: "Transmission",
+      btn: "Book Now", helmets: "2 helmets included", clean: "Clean condition",
+      description: "Description", transmission: "Transmission", engine: "Engine", cc: "cc",
       modalSub: "Rental dates", submitBtn: "Send Request",
       successTitle: "Request Sent",
       successText: "We are contacting the owner. You can close the app; we will notify you via Telegram.",
@@ -315,11 +315,11 @@ export default function BikePage() {
             <div className="absolute inset-0 pointer-events-none"
               style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.65) 0%, rgba(0,0,0,0.1) 45%, transparent 70%)' }} />
             <div className="absolute bottom-6 left-6 pointer-events-none">
-              <h1 className="font-display text-4xl font-black uppercase italic leading-none tracking-tighter text-white drop-shadow-lg">
+              <h1 className="font-display text-[42px] font-black uppercase italic leading-none tracking-wide text-white drop-shadow-lg">
                 {bike.model}
               </h1>
-              <p className="text-white/60 text-[10px] font-bold uppercase tracking-widest mt-1">
-                {bike.transmission} · {bike.engine}cc · {bike.year}
+              <p className="text-white/60 text-[10px] font-bold uppercase tracking-widest mt-1.5">
+                {bike.transmission} · {bike.engine} {lang === 'ru' ? 'куб.' : 'cc'}
               </p>
             </div>
 
@@ -371,18 +371,14 @@ export default function BikePage() {
             </div>
 
             {/* Specs row */}
-            <div className="grid grid-cols-3 gap-2 mb-5">
+            <div className="grid grid-cols-2 gap-2 mb-5">
               <div className="spec-card text-center">
-                <p className="text-[7px] text-gray-400 uppercase font-black tracking-wider mb-1 font-display">Engine</p>
-                <p className="font-display text-[13px] font-black text-green-700 tracking-tight">{bike.engine}cc</p>
+                <p className="text-[7px] text-gray-400 uppercase font-black tracking-wider mb-1 font-display">{t[lang].engine}</p>
+                <p className="font-display text-[13px] font-black text-green-700 tracking-tight">{bike.engine} {t[lang].cc}</p>
               </div>
               <div className="spec-card text-center">
                 <p className="text-[7px] text-gray-400 uppercase font-black tracking-wider mb-1 font-display">{t[lang].transmission}</p>
                 <p className="font-display text-[12px] font-black text-gray-900 tracking-tight">{bike.transmission}</p>
-              </div>
-              <div className="spec-card text-center">
-                <p className="text-[7px] text-gray-400 uppercase font-black tracking-wider mb-1 font-display">Year</p>
-                <p className="font-display text-[13px] font-black text-gray-900 tracking-tight">{bike.year}</p>
               </div>
             </div>
 
