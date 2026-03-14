@@ -178,6 +178,7 @@ export default function BikePage() {
   const applyQuick = (days: number) => {
     setStartDate(fmt(today));
     setEndDate(fmt(addDays(today, days)));
+    setIsSpecial(days > 10);
   };
 
   return (
@@ -566,13 +567,23 @@ export default function BikePage() {
                   <div className="grid grid-cols-2 gap-3 mb-5">
                     <div className="date-field">
                       <label className="date-label">{t[lang].labelStart}</label>
-                      <input required type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)}
-                        className="date-input" />
+                      <input required type="date" value={startDate} onChange={(e) => {
+                        setStartDate(e.target.value);
+                        if (endDate) {
+                          const d = Math.ceil((new Date(endDate).getTime() - new Date(e.target.value).getTime()) / 86400000);
+                          setIsSpecial(d > 10);
+                        }
+                      }} className="date-input" />
                     </div>
                     <div className="date-field">
                       <label className="date-label">{t[lang].labelEnd}</label>
-                      <input required type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)}
-                        className="date-input" />
+                      <input required type="date" value={endDate} onChange={(e) => {
+                        setEndDate(e.target.value);
+                        if (startDate) {
+                          const d = Math.ceil((new Date(e.target.value).getTime() - new Date(startDate).getTime()) / 86400000);
+                          setIsSpecial(d > 10);
+                        }
+                      }} className="date-input" />
                     </div>
                   </div>
 
@@ -589,7 +600,8 @@ export default function BikePage() {
                         <p className="font-body font-semibold text-gray-400 mt-0.5"
                           style={{ fontSize:'12px', letterSpacing:'0.03em' }}>
                           {(() => {
-                            const vnd = parseInt((calculateTotalOrderPrice() || '').toString().replace(/\D/g,'') || '0');
+                            const raw = calculateTotalOrderPrice().toString().replace(/\D/g,'');
+                            const vnd = parseInt(raw || '0');
                             return vnd > 0 ? `≈ $${Math.round(vnd / 26000)}` : '';
                           })()}
                         </p>
@@ -605,43 +617,20 @@ export default function BikePage() {
                       borderRadius: '18px',
                       padding: '16px 18px',
                     }}>
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-2">
-                          <div style={{
-                            background: '#f59e0b', color: 'white',
-                            borderRadius: '8px', padding: '3px 8px',
-                            fontSize: '10px', fontWeight: 800,
-                            letterSpacing: '0.06em', textTransform: 'uppercase',
-                            fontFamily: "'Barlow Condensed', sans-serif",
-                          }}>
-                            ⭐ {t[lang].specialBadge}
-                          </div>
-                          <span className="font-display font-black text-amber-800"
-                            style={{ fontSize: '14px', letterSpacing: '0.04em' }}>
-                            {totalDays()} {lang === 'ru' ? 'дней' : 'days'}
-                          </span>
-                        </div>
-                        {/* Estimated USD */}
+                      <div className="flex items-center gap-2 mb-2">
                         <div style={{
-                          background: 'rgba(255,255,255,0.7)',
-                          border: '1px solid #fcd34d',
-                          borderRadius: '10px',
-                          padding: '4px 10px',
-                          textAlign: 'center',
+                          background: '#f59e0b', color: 'white',
+                          borderRadius: '8px', padding: '3px 8px',
+                          fontSize: '10px', fontWeight: 800,
+                          letterSpacing: '0.06em', textTransform: 'uppercase',
+                          fontFamily: "'Barlow Condensed', sans-serif",
                         }}>
-                          <p className="font-body font-bold text-amber-600"
-                            style={{ fontSize: '9px', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '1px' }}>
-                            {lang === 'ru' ? 'от' : 'from'}
-                          </p>
-                          <p className="font-display font-black text-amber-800"
-                            style={{ fontSize: '16px', letterSpacing: '0.03em', lineHeight: 1 }}>
-                            {(() => {
-                              const cleanPrice = (p: string) => parseInt(p?.replace(/\D/g, '') || '0');
-                              const p2 = bike.price_2days ? cleanPrice(bike.price_2days) : cleanPrice(bike.price_day);
-                              return `≈ $${Math.round((p2 * totalDays()) / 26000)}`;
-                            })()}
-                          </p>
+                          ⭐ {t[lang].specialBadge}
                         </div>
+                        <span className="font-display font-black text-amber-800"
+                          style={{ fontSize: '14px', letterSpacing: '0.04em' }}>
+                          {totalDays()} {lang === 'ru' ? 'дней' : 'days'}
+                        </span>
                       </div>
                       <p className="font-body text-amber-800 leading-snug"
                         style={{ fontSize: '13px', letterSpacing: '0.01em' }}>
