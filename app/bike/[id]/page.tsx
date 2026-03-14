@@ -586,6 +586,13 @@ export default function BikePage() {
                       <div className="text-right">
                         <p className="summary-label" style={{ color:'#16a34a' }}>{t[lang].sum}</p>
                         <p className="price-shimmer summary-value-green">{calculateTotalOrderPrice()} ₫</p>
+                        <p className="font-body font-semibold text-gray-400 mt-0.5"
+                          style={{ fontSize:'12px', letterSpacing:'0.03em' }}>
+                          {(() => {
+                            const vnd = parseInt((calculateTotalOrderPrice() || '').toString().replace(/\D/g,'') || '0');
+                            return vnd > 0 ? `≈ $${Math.round(vnd / 26000)}` : '';
+                          })()}
+                        </p>
                       </div>
                     </div>
                   )}
@@ -598,20 +605,43 @@ export default function BikePage() {
                       borderRadius: '18px',
                       padding: '16px 18px',
                     }}>
-                      <div className="flex items-center gap-2 mb-2">
-                        <div style={{
-                          background: '#f59e0b', color: 'white',
-                          borderRadius: '8px', padding: '3px 8px',
-                          fontSize: '10px', fontWeight: 800,
-                          letterSpacing: '0.06em', textTransform: 'uppercase',
-                          fontFamily: "'Barlow Condensed', sans-serif",
-                        }}>
-                          ⭐ {t[lang].specialBadge}
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <div style={{
+                            background: '#f59e0b', color: 'white',
+                            borderRadius: '8px', padding: '3px 8px',
+                            fontSize: '10px', fontWeight: 800,
+                            letterSpacing: '0.06em', textTransform: 'uppercase',
+                            fontFamily: "'Barlow Condensed', sans-serif",
+                          }}>
+                            ⭐ {t[lang].specialBadge}
+                          </div>
+                          <span className="font-display font-black text-amber-800"
+                            style={{ fontSize: '14px', letterSpacing: '0.04em' }}>
+                            {totalDays()} {lang === 'ru' ? 'дней' : 'days'}
+                          </span>
                         </div>
-                        <span className="font-display font-black text-amber-800"
-                          style={{ fontSize: '14px', letterSpacing: '0.04em' }}>
-                          {totalDays()} {lang === 'ru' ? 'дней' : 'days'}
-                        </span>
+                        {/* Estimated USD */}
+                        <div style={{
+                          background: 'rgba(255,255,255,0.7)',
+                          border: '1px solid #fcd34d',
+                          borderRadius: '10px',
+                          padding: '4px 10px',
+                          textAlign: 'center',
+                        }}>
+                          <p className="font-body font-bold text-amber-600"
+                            style={{ fontSize: '9px', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '1px' }}>
+                            {lang === 'ru' ? 'от' : 'from'}
+                          </p>
+                          <p className="font-display font-black text-amber-800"
+                            style={{ fontSize: '16px', letterSpacing: '0.03em', lineHeight: 1 }}>
+                            {(() => {
+                              const cleanPrice = (p: string) => parseInt(p?.replace(/\D/g, '') || '0');
+                              const p2 = bike.price_2days ? cleanPrice(bike.price_2days) : cleanPrice(bike.price_day);
+                              return `≈ $${Math.round((p2 * totalDays()) / 26000)}`;
+                            })()}
+                          </p>
+                        </div>
                       </div>
                       <p className="font-body text-amber-800 leading-snug"
                         style={{ fontSize: '13px', letterSpacing: '0.01em' }}>
