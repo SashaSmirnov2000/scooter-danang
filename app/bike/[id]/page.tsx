@@ -19,6 +19,7 @@ export default function BikePage() {
   const [endDate, setEndDate] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [isSpecial, setIsSpecial] = useState(false);
 
   const touchStartX = useRef<number | null>(null);
   const touchEndX = useRef<number | null>(null);
@@ -113,6 +114,12 @@ export default function BikePage() {
       close: "Закрыть", labelStart: "Начало аренды", labelEnd: "Конец аренды",
       total: "Дней", sum: "Итого",
       perDay: "в сутки", perDayLong: "от 2 суток",
+      specialBadge: "Лучший прайс",
+      specialTitle: "Длительная аренда",
+      specialText: "Для аренды от 14 дней мы согласовываем индивидуальную цену с владельцем. После подтверждения наличия — пришлём вам лучшее предложение в Telegram.",
+      specialBtn: "Запросить цену",
+      specialSuccessTitle: "Запрос отправлен!",
+      specialSuccessText: "Мы уже договариваемся с владельцем о лучшей цене для вас. Ожидайте уведомление в Telegram — обычно это занимает не более часа.",
     },
     en: {
       back: "Back", day: "1 day", month: "2+ days",
@@ -125,6 +132,12 @@ export default function BikePage() {
       close: "Close", labelStart: "Start date", labelEnd: "End date",
       total: "Days", sum: "Total",
       perDay: "per day", perDayLong: "2+ days",
+      specialBadge: "Best price",
+      specialTitle: "Long-term rental",
+      specialText: "For rentals of 14 days or more, we negotiate a personal price with the owner. Once availability is confirmed, we'll send you the best offer via Telegram.",
+      specialBtn: "Request price",
+      specialSuccessTitle: "Request sent!",
+      specialSuccessText: "We're already negotiating the best price for you with the owner. Expect a Telegram notification — usually within an hour.",
     }
   };
 
@@ -155,10 +168,12 @@ export default function BikePage() {
   const fmt = (d: Date) => d.toISOString().split('T')[0];
   const addDays = (d: Date, n: number) => { const r = new Date(d); r.setDate(r.getDate() + n); return r; };
   const quickRanges = [
-    { ru: '3 дня',   en: '3 дня',   days: 3  },
-    { ru: '7 дней',  en: '7 дней',  days: 7  },
-    { ru: '14 дней', en: '14 дней', days: 14 },
-    { ru: '30 дней', en: '30 дней', days: 30 },
+    { label: '3 дн.',  days: 3,  special: false },
+    { label: '5 дн.',  days: 5,  special: false },
+    { label: '7 дн.',  days: 7,  special: false },
+    { label: '10 дн.', days: 10, special: false },
+    { label: '14 дн.', days: 14, special: true  },
+    { label: '30 дн.', days: 30, special: true  },
   ];
   const applyQuick = (days: number) => {
     setStartDate(fmt(today));
@@ -249,18 +264,25 @@ export default function BikePage() {
 
         /* Quick date buttons */
         .q-btn {
-          flex: 1; padding: 10px 6px;
+          flex: 1; padding: 10px 4px;
           border-radius: 12px;
           font-family: 'Barlow Condensed', sans-serif;
-          font-size: 13px; font-weight: 800;
+          font-size: 12px; font-weight: 800;
           letter-spacing: 0.03em;
           border: 1.5px solid #e5e7eb;
           background: white; color: #6b7280;
           cursor: pointer; transition: all 0.15s;
-          text-align: center;
+          text-align: center; line-height: 1.2;
         }
         .q-btn:hover  { border-color: #16a34a; color: #15803d; background: #f0fdf4; }
         .q-btn.active { border-color: #16a34a; background: #16a34a; color: white; }
+        .q-btn.special { border-color: #f59e0b; color: #b45309; background: #fffbeb; }
+        .q-btn.special:hover { border-color: #d97706; background: #fef3c7; }
+        .q-btn.special.active { border-color: #d97706; background: #f59e0b; color: white; }
+        .q-btn-sub {
+          display: block; font-size: 8px; font-weight: 700;
+          letter-spacing: 0.04em; opacity: 0.75; margin-top: 1px;
+        }
 
         /* Date input row */
         .date-field {
@@ -490,7 +512,7 @@ export default function BikePage() {
 
             {/* Book button */}
             <button
-              onClick={() => { setShowModal(true); setIsSubmitted(false); }}
+              onClick={() => { setShowModal(true); setIsSubmitted(false); setIsSpecial(false); }}
               className="btn-press book-btn w-full py-4 rounded-2xl text-white font-display font-black"
               style={{ fontSize:'15px', letterSpacing:'0.1em', textTransform:'uppercase' }}
             >
@@ -525,13 +547,16 @@ export default function BikePage() {
                   </div>
 
                   {/* Quick ranges */}
-                  <div className="flex gap-2 mb-5">
+                  <div className="flex gap-1.5 mb-5 flex-wrap">
                     {quickRanges.map((r) => {
                       const isActive = startDate === fmt(today) && endDate === fmt(addDays(today, r.days));
                       return (
-                        <button key={r.days} type="button" onClick={() => applyQuick(r.days)}
-                          className={`q-btn ${isActive ? 'active' : ''}`}>
-                          {r.ru}
+                        <button key={r.days} type="button"
+                          onClick={() => { applyQuick(r.days); setIsSpecial(r.special); }}
+                          className={`q-btn ${r.special ? 'special' : ''} ${isActive ? 'active' : ''}`}
+                          style={{ minWidth: 0 }}>
+                          {r.label}
+                          {r.special && <span className="q-btn-sub">спец. цена</span>}
                         </button>
                       );
                     })}
@@ -551,8 +576,8 @@ export default function BikePage() {
                     </div>
                   </div>
 
-                  {/* Summary */}
-                  {totalDays() > 0 && (
+                  {/* Summary — normal */}
+                  {totalDays() > 0 && !isSpecial && (
                     <div className="summary-box mb-5">
                       <div>
                         <p className="summary-label">{t[lang].total}</p>
@@ -565,6 +590,36 @@ export default function BikePage() {
                     </div>
                   )}
 
+                  {/* Summary — special (14+ days) */}
+                  {totalDays() > 0 && isSpecial && (
+                    <div className="mb-5" style={{
+                      background: 'linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)',
+                      border: '1.5px solid #fcd34d',
+                      borderRadius: '18px',
+                      padding: '16px 18px',
+                    }}>
+                      <div className="flex items-center gap-2 mb-2">
+                        <div style={{
+                          background: '#f59e0b', color: 'white',
+                          borderRadius: '8px', padding: '3px 8px',
+                          fontSize: '10px', fontWeight: 800,
+                          letterSpacing: '0.06em', textTransform: 'uppercase',
+                          fontFamily: "'Barlow Condensed', sans-serif",
+                        }}>
+                          ⭐ {t[lang].specialBadge}
+                        </div>
+                        <span className="font-display font-black text-amber-800"
+                          style={{ fontSize: '14px', letterSpacing: '0.04em' }}>
+                          {totalDays()} {lang === 'ru' ? 'дней' : 'days'}
+                        </span>
+                      </div>
+                      <p className="font-body text-amber-800 leading-snug"
+                        style={{ fontSize: '13px', letterSpacing: '0.01em' }}>
+                        {t[lang].specialText}
+                      </p>
+                    </div>
+                  )}
+
                   {/* Buttons */}
                   <div className="flex gap-2">
                     <button type="button" onClick={() => setShowModal(false)}
@@ -573,29 +628,43 @@ export default function BikePage() {
                       {t[lang].close}
                     </button>
                     <button type="submit" disabled={isSubmitting}
-                      className="btn-press book-btn flex-[2] rounded-xl text-white font-body font-bold transition-all"
-                      style={{ padding:'14px 8px', fontSize:'13px', letterSpacing:'0.04em' }}>
+                      className="btn-press flex-[2] rounded-xl text-white font-body font-bold transition-all"
+                      style={{
+                        padding:'14px 8px', fontSize:'13px', letterSpacing:'0.04em',
+                        background: isSpecial
+                          ? 'linear-gradient(135deg, #d97706 0%, #f59e0b 100%)'
+                          : 'linear-gradient(135deg, #16a34a 0%, #22c55e 100%)',
+                        boxShadow: isSpecial
+                          ? '0 4px 20px rgba(217,119,6,0.35)'
+                          : '0 4px 20px rgba(22,163,74,0.3)',
+                      }}>
                       {isSubmitting ? (
                         <span className="flex items-center justify-center gap-2">
                           <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full inline-block" style={{ animation:'spin 0.8s linear infinite' }} />
                         </span>
-                      ) : t[lang].submitBtn}
+                      ) : isSpecial ? t[lang].specialBtn : t[lang].submitBtn}
                     </button>
                   </div>
                 </form>
               ) : (
                 <div className="text-center py-4">
-                  <div className="w-16 h-16 bg-green-100 border border-green-200 rounded-full flex items-center justify-center mx-auto mb-5">
-                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M20 6L9 17l-5-5"/>
-                    </svg>
+                  <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-5 ${isSpecial ? 'bg-amber-100 border border-amber-200' : 'bg-green-100 border border-green-200'}`}>
+                    {isSpecial ? (
+                      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                      </svg>
+                    ) : (
+                      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M20 6L9 17l-5-5"/>
+                      </svg>
+                    )}
                   </div>
                   <h2 className="font-display font-black uppercase italic text-gray-900 mb-3"
                     style={{ fontSize:'26px', letterSpacing:'0.04em' }}>
-                    {t[lang].successTitle}
+                    {isSpecial ? t[lang].specialSuccessTitle : t[lang].successTitle}
                   </h2>
                   <p className="font-body text-gray-500 leading-relaxed mb-4" style={{ fontSize:'14px' }}>
-                    {t[lang].successText}
+                    {isSpecial ? t[lang].specialSuccessText : t[lang].successText}
                   </p>
                   <div className="bg-gray-50 rounded-xl border border-gray-100 mb-6" style={{ padding:'12px 16px' }}>
                     <p className="font-body font-bold text-gray-400"
@@ -604,8 +673,11 @@ export default function BikePage() {
                     </p>
                   </div>
                   <button onClick={() => setShowModal(false)}
-                    className="btn-press w-full bg-gray-900 text-white rounded-xl font-body font-bold transition-all hover:bg-green-600"
-                    style={{ padding:'14px', fontSize:'13px', letterSpacing:'0.06em', textTransform:'uppercase' }}>
+                    className="btn-press w-full text-white rounded-xl font-body font-bold transition-all"
+                    style={{
+                      padding:'14px', fontSize:'13px', letterSpacing:'0.06em', textTransform:'uppercase',
+                      background: isSpecial ? 'linear-gradient(135deg, #d97706, #f59e0b)' : '#111827',
+                    }}>
                     OK
                   </button>
                 </div>
