@@ -110,10 +110,10 @@ export default function Home() {
   };
 
   const categories = [
-    { id: 'Автомат',     ru: 'Автомат',             en: 'Auto' },
-    { id: 'Полуавтомат', ru: 'Полуавто',             en: 'Semi' },
-    { id: 'Механика',    ru: 'Механика',             en: 'Manual' },
-    { id: 'Электро',     ru: 'Электро / Без прав',  en: 'Elec / No license' },
+    { id: 'Автомат',     ru: 'Автомат',    en: 'Auto',       icon: '⚙️',  sub: null },
+    { id: 'Полуавтомат', ru: 'Полуавто',   en: 'Semi',       icon: '🔧',  sub: null },
+    { id: 'Механика',    ru: 'Механика',   en: 'Manual',     icon: '🏍️', sub: null },
+    { id: 'Электро',     ru: 'Без прав',   en: 'No License', icon: '⚡',  sub: { ru: 'Электро + до 50сс', en: 'Electric + under 50cc' } },
   ];
 
   const t = {
@@ -285,14 +285,19 @@ export default function Home() {
         {/* ── HERO ────────────────────────────────────────────────────────── */}
         <section className="relative pt-24 pb-5 flex flex-col items-center justify-center text-center px-4 overflow-hidden">
           {/* Background image */}
-          <div className="absolute top-0 inset-0 z-0 h-[32vh]">
+          <div className="absolute top-0 inset-0 z-0 h-[38vh]">
             <img
               src="https://static.vinwonders.com/2022/12/Dragon-Bridge-thumb.jpg"
-              className="w-full h-full object-cover opacity-[0.08]"
+              className="w-full h-full object-cover opacity-40"
               alt="Bridge"
-              style={{ filter: 'saturate(0.6)' }}
+              style={{ filter: 'saturate(1.1) contrast(1.05)', objectPosition: 'center 60%' }}
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-[#05070a] via-[#05070a]/60 to-transparent" />
+            {/* Dark vignette on sides */}
+            <div className="absolute inset-0" style={{ background: 'linear-gradient(90deg, #05070a 0%, transparent 25%, transparent 75%, #05070a 100%)' }} />
+            {/* Bottom fade */}
+            <div className="absolute inset-0 bg-gradient-to-t from-[#05070a] via-[#05070a]/30 to-transparent" />
+            {/* Top fade */}
+            <div className="absolute inset-0 bg-gradient-to-b from-[#05070a]/60 to-transparent" style={{ height: '30%' }} />
             <div className="hero-glow" />
           </div>
 
@@ -313,26 +318,59 @@ export default function Home() {
 
           {/* Category filter */}
           <div className="relative z-10 w-full max-w-2xl mx-auto px-1 fade-up" style={{ animationDelay: '0.1s' }}>
-            <div className="flex flex-wrap justify-center gap-1.5">
-              {categories.map((cat) => {
+            {/* Top row: regular categories */}
+            <div className="flex gap-1.5 mb-1.5">
+              {categories.filter(c => c.id !== 'Электро').map((cat) => {
                 const isActive = activeCategory === cat.id;
                 return (
                   <button
                     key={cat.id}
                     onClick={() => setActiveCategory(isActive ? 'All' : cat.id)}
-                    className={`btn-press px-3 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-tighter transition-all duration-200 border shrink-0 font-display
+                    className={`btn-press flex-1 px-2 py-2 rounded-xl text-[9px] font-black uppercase tracking-tighter transition-all duration-200 border font-display flex items-center justify-center gap-1
                       ${isActive
-                        ? 'cat-active bg-green-500/90 border-green-400/60 text-white scale-[1.03]'
+                        ? 'cat-active bg-green-500/90 border-green-400/60 text-white scale-[1.02]'
                         : 'bg-white/5 border-white/5 text-gray-400 hover:text-white hover:bg-white/10 hover:border-white/10'
                       }
-                      ${cat.id === 'Электро' ? 'flex-[1.5] min-w-[150px]' : 'flex-1 min-w-[80px]'}
                     `}
                   >
+                    <span className="text-[10px]">{cat.icon}</span>
                     {lang === 'ru' ? cat.ru : cat.en}
                   </button>
                 );
               })}
             </div>
+
+            {/* Bottom row: Электро/Без прав — full width, prominent */}
+            {(() => {
+              const cat = categories.find(c => c.id === 'Электро')!;
+              const isActive = activeCategory === cat.id;
+              return (
+                <button
+                  onClick={() => setActiveCategory(isActive ? 'All' : cat.id)}
+                  className={`btn-press w-full rounded-xl transition-all duration-200 border font-display flex items-center justify-between px-4 py-3
+                    ${isActive
+                      ? 'cat-active bg-green-500/90 border-green-400/60 text-white scale-[1.01]'
+                      : 'bg-white/5 border-white/10 text-gray-300 hover:text-white hover:bg-white/10 hover:border-white/15'
+                    }
+                  `}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-xl leading-none">⚡</span>
+                    <div className="flex flex-col items-start">
+                      <span className="text-[12px] font-black uppercase tracking-tight leading-none">
+                        {lang === 'ru' ? 'Без прав' : 'No License'}
+                      </span>
+                      <span className={`text-[8px] font-bold uppercase tracking-wider leading-none mt-0.5 ${isActive ? 'text-green-100/70' : 'text-gray-500'}`}>
+                        {lang === 'ru' ? cat.sub!.ru : cat.sub!.en}
+                      </span>
+                    </div>
+                  </div>
+                  <div className={`flex items-center gap-1 text-[8px] font-black uppercase tracking-wider px-2 py-1 rounded-lg ${isActive ? 'bg-black/20 text-green-100' : 'bg-white/5 text-gray-500'}`}>
+                    {lang === 'ru' ? 'Не нужны права' : 'License free'}
+                  </div>
+                </button>
+              );
+            })()}
           </div>
         </section>
 
